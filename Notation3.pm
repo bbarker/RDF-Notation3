@@ -1,15 +1,15 @@
-use strict;
-use warnings;
-
 package RDF::Notation3;
 
 require 5.005_62;
+use strict;
+#use warnings;
+use vars qw($VERSION);
 use File::Spec::Functions ();
 use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-our $VERSION = '0.50';
+$VERSION = '0.60';
 
 ############################################################
 
@@ -674,6 +674,9 @@ sub _do_error {
 	301 => '[SAX] characterStream source not implemented',       
 
 	401 => '[XML] unable to convert URI predicate to QName',
+
+	501 => '[RDFCore] literal not allowed as subject',
+	502 => '[RDFCore] valid storage not specified',
 	);
 
     my $msg = "[Error $n]";

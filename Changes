@@ -1,6 +1,10 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.60  Mar 14, 2002
+	- fixed a bug in add_triple
+	- added support for RDF::Core
+
 0.50  Dec 3, 2001	
 	- serialization to N3 (get_n3 method)
 	- a way to add prefixes/triples by hand

@@ -1,5 +1,5 @@
 use strict;
-use warnings;
+#use warnings;
 
 package RDF::Notation3::Template::TTriples;
 
@@ -135,7 +135,7 @@ sub add_prefix {
 
 
 sub _check_resource {
-    my ($self, $rs, $type) = @_;
+    my ($self, $s, $rs, $type) = @_;
 
     if ($rs =~ /^<[^\{\}<>]*>$/) {
 	# URI
@@ -143,21 +143,21 @@ sub _check_resource {
     } elsif ($rs =~ /^(?:[_a-zA-Z]\w*)?:[a-zA-Z]\w*$/) {
 	# QName
 	my $bound = 0;
-	foreach (keys %{$self->{ns}->{$self->{context}}}) {
+	foreach (keys %{$self->{ns}->{'<>'}}) {
 	    $rs =~ /^$_:(.*)$/ and $bound = 1 and last;
 	}
-	$self->_do_error(106, $rs) unless $bound;
+	$self->_do_error(106, "$rs (subject: $s)") unless $bound;
 
     } elsif ($rs =~ /^"(?:\\"|[^\"])*"$/) {
 	# string1
-	$self->_do_error(202, $rs) unless $type eq 'l';
+	$self->_do_error(202, "$rs (subject: $s)") unless $type eq 'l';
 
     } elsif ($rs =~ /^"""(.*)"""$/) {
 	# string2
-	$self->_do_error(202, $rs) unless $type eq 'l';
+	$self->_do_error(202, "$rs (subject: $s)") unless $type eq 'l';
 
     } else {
-	$self->_do_error(201, $rs);
+	$self->_do_error(201, "$rs (subject: $s)");
     }
 }
 

@@ -3,7 +3,9 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 
 # optional stuff
-my %opts = (XML::SAX => "RDF::Notation3::SAX class can't be used",
+my %opts = (
+	    XML::SAX => "RDF::Notation3::SAX class can't be used",
+	    RDF::Core => "RDF::Notation3::RDFCore class can't be used",
 	   );
 
 foreach (keys %opts) {

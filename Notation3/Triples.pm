@@ -1,5 +1,5 @@
 use strict;
-use warnings;
+#use warnings;
 
 package RDF::Notation3::Triples;
 
@@ -45,19 +45,19 @@ sub _process_statement {
 
 
 sub add_triple {
-    my ($self, $subj, $verb, $obj) = @_;
+    my ($self, $s, $p, $o) = @_;
 
     $self->{triples} or $self->{triples} = [];
 
-    $self->_check_resource($subj);
-    $self->_check_resource($verb);
-    $self->_check_resource($obj, 'l');
+    $self->_check_resource($s, $s);
+    $self->_check_resource($s, $p);
+    $self->_check_resource($s, $o, 'l');
 
-    $subj = $self->_expand_prefix($subj);
-    $verb = $self->_expand_prefix($verb);
-    $obj  = $self->_expand_prefix($obj);
+    $s = $self->_expand_prefix($s);
+    $p = $self->_expand_prefix($p);
+    $o = $self->_expand_prefix($o);
 
-    push @{$self->{triples}}, [$subj, $verb, $obj, '<>'];
+    push @{$self->{triples}}, [$s, $p, $o, '<>'];
     return scalar @{$self->{triples}};
 }
 

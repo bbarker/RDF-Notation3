@@ -6,17 +6,22 @@ RDF::Notation3 - RDF Notation3 parser
 
 =head1 SYNOPSIS
 
- $rdf = new RDF::Notation3::Triples;
+ $rdf = RDF::Notation3::Triples->new();
  $rdf->parse_file($path);
  $triples = $rdf->get_triples;
 
- $rdf = new RDF::Notation3::XML
+ $rdf = RDF::Notation3::XML->new();
  $rdf->parse_file($path);
  $string = $rdf->get_string;
 
- $handler = new SAXHandler;
- $rdf = new RDF::Notation3::SAX(Handler => $handler);
+ $handler = SAXHandler->new();
+ $rdf = RDF::Notation3::SAX->new(Handler => $handler);
  $rdf->parse_file($path);
+
+ $rdf = RDF::Notation3::RDFCore->new();
+ $storage = RDF::Core::Storage::Memory->new();
+ $rdf->set_storage($storage);
+ $model = $rdf->parse_file($path);
 
 =head1 DESCRIPTION
 
@@ -30,7 +35,8 @@ or Notation3::XML are used. The subclasses control how results of parsing
 are processed and can provide additional methods to access the results then. 
 RDF::Notation3 doesn't tend to create sophisticated in-memory or persistent 
 RDF structures of its own; it should more likely serve as a parser for other 
-Perl RDF modules focused on how to store and access RDF triples.
+Perl RDF modules (such as RDF::Core) focused on how to store and access RDF 
+models.
 
 =head1 METHODS COMMON TO ALL SUBCLASSES
 
@@ -297,14 +303,59 @@ methods:
  $rdf->parse_string($string);
 
 These methods don't return a number of parsed triples but result of calling 
-the end_document() callback as required by spec. The number of triples can
+the end_document() callback as required by SAX. The number of triples can
 be accessed as $rdf->{count}.
+
+=back
+
+=head2 RDF::Notation3::RDFCore
+
+This class parses an RDF/N3 file and returns an RDF::Core::Model object.
+Using RDF::Core you can store parsed models either in memory or persistently,
+ask queries etc.
+
+methods:
+
+=over
+
+=item parse_file, parse_string
+
+ $model = $rdf->parse_file($path);
+ $model = $rdf->parse_string($string);
+
+Both methods return a model object.
+
+=item set_storage
+
+ $rdf->set_storage($storage);
+
+Allows to select a storage for the model. The argument of this method must
+be one of the following objects:
+
+=over
+
+=item RDF::Core::Storage::Memory
+
+An in-memory implementation of RDF::Core::Storage
+
+=item RDF::Core::Storage::Postgres
+
+PostgreSQL implementation of RDF::Core::Storage
+
+=item RDF::Core::Storage::DB_File
+
+Berkeley DB 1.x implementation of RDF::Core::Storage
+
+An error is reported by parse_string and parse_file methods if there is no
+valid storage specified.
+
+=back
 
 =back
 
 =head1 VERSION
 
-Current version is 0.50.
+Current version is 0.60.
 
 =head1 LICENSING
 
@@ -314,11 +365,10 @@ as Perl itself.
 
 =head1 AUTHOR
 
-Petr Cimprich, petr@gingerall.cz
+Petr Cimprich (Ginger Alliance), petr@gingerall.cz
 
 =head1 SEE ALSO
 
-perl(1).
+perl(1), RDF::Core.
 
 =cut
-

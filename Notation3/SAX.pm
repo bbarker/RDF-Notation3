@@ -1,5 +1,5 @@
 use strict;
-use warnings;
+#use warnings;
 
 package RDF::Notation3::SAX;
 
@@ -16,7 +16,7 @@ use XML::SAX::Base;
 # --------------------------------------------------
 
 sub _parse_bytestream {
-    my ($self, $fh, $options) = @_;
+    my ($self, $fh, $options) = @_; #FIXME: options to ai jsou zbytecne
     $self->_do_error(1, '') unless @_ > 1;
     $self->{ansuri} = '#' unless exists $self->{ansuri};
     $self->{quantif} = 1 unless exists $self->{quantif};
