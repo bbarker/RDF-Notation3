@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.83';
+$VERSION = '0.90';
 
 ############################################################
 
@@ -19,6 +19,7 @@ sub new {
     my $self = {
 	ansuri  => '#',
 	quantif => 1,
+	nIDpref	=> '_:a', # this fits to RDF:Core prefix for nodeID
     };
 
     bless $self, $class;
@@ -394,57 +395,6 @@ sub _object {
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
 	return $self->_unesc_string($1);
-# #--
-#     } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/) {
-# 	##print ">complete string2: $next\n";
-# 	my $tk = $self->{reader}->get;
-# 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
-# 	return $self->_unesc_string($1);
-
-#     } elsif ($next eq '"' or $next =~ /^"[^\"]/) {
-# 	##print ">start of string1: $next\n";
-# 	my $tk = $self->{reader}->get;
-# 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
-# 	until ($tk =~ /"[\.;,\]\}\)]?$/) {
-# 	    my $next = $self->{reader}->try;
-# 	    ##print ">next part: $next\n";
-# 	    my $tk2;
-# 	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/) {
-# 		$tk2 = $self->{reader}->get;
-# 		$tk .= " $tk2";
-# 	    } else {
-# 		$self->_do_error(105, $next);
-# 	    }
-# 	    $self->_do_error(111, $tk2) if $tk2 eq ' EOF ';
-# 	}
-# 	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
-# 	    unshift @{$self->{reader}->{tokens}}, $2;
-# 	}
-# 	$self->_do_error(114, $tk) if $tk =~ / EOL /;
-# 	return $self->_unesc_string($tk);
-
-#     } elsif ($next eq '"""' or $next =~ /^"""[^\"]/) {
-# 	##print ">start of string2: $next\n";
-# 	my $tk = $self->{reader}->get;
-# 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
-# 	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
-# 	    my $next = $self->{reader}->try;
-# 	    ##print ">next part: $next\n";
-# 	    my $tk2;
-# 	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/) {
-# 		$tk2 = $self->{reader}->get;
-# 		$tk .= " $tk2";
-# 	    } else {
-# 		$self->_do_error(112, $next);
-# 	    }
-# 	    $self->_do_error(113, $tk2) if $tk2 eq ' EOF ';
-# 	}
-# 	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"""/) {
-# 	    unshift @{$self->{reader}->{tokens}}, $2;
-# 	}
-# 	$tk =~ s/  EOL  /\n/g;
-# 	return $self->_unesc_string($tk);
-# #-
 
     } else {
 	#print ">object is node: $next\n";
@@ -525,7 +475,6 @@ sub _anonymous_node {
 	    #print ">void ()\n";
 	    $self->{reader}->get;
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
-#	    return '<http://www.daml.org/2001/03/daml+oil#nil>';
 	    return $self->_built_in_verb('daml','nil');
 	    
 	} else {
@@ -707,6 +656,7 @@ sub _do_error {
 	301 => '[SAX] characterStream source not implemented',       
 
 	401 => '[XML] unable to convert URI predicate to QName',
+	402 => '[XML] subject not recognized - internal error',
 
 	501 => '[RDFCore] literal not allowed as subject',
 	502 => '[RDFCore] valid storage not specified',

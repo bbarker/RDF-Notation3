@@ -1,6 +1,12 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.90  Aug 25, 2003
+        - rdf:nodeID attribute is used for blank nodes in
+	  conversions to RDF/XML
+        - 'about' attribute changed to 'rdf:about' in conversions
+	  [suggested by Seth Ladd]
+
 0.83  Dec 3, 2002
 	- missing test05.n3 added to MANIFEST and thus
 	  to the package

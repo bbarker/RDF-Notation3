@@ -14,10 +14,10 @@ foreach (keys %opts) {
     my $try = "require $_;";
     eval $try;
     if ($@) {
-	print "$_ is missing!\n";
+	print "$_ not found!\n";
 	print "RDF::Notation3 will be installed with the following limitation:\n";
 	print "=> $opts{$_}!\n";
-	print "Install $_ from CPAN to be able to use this functionality.\n\n";
+	print "Install $_ from CPAN to get this functionality.\n\n";
     } else {
 	print "$_ found...\n";
     }

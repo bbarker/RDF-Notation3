@@ -25,7 +25,14 @@ sub _process_statement {
 
 	    if ($j == 0 or $prev eq 'i') {
 		my @attr = ();
-		push @attr, [about => $subject];
+
+		# nodeID is used for blank nodes
+		if ($subject =~ /^$self->{ansuri}(.*)$/) {
+		    push @attr, ['rdf:nodeID' => "$self->{nIDpref}$1"];
+		} else {
+		    push @attr, ['rdf:about' => $subject];		    
+		}
+
 		$self->doStartElement('rdf:Description', \@attr);
 	    }
 
@@ -37,15 +44,37 @@ sub _process_statement {
    
 		my @attr = @$attr;
 		my $val = '';
+
 		# URI
-		$_->[$i] =~ s/^<(.*)>$/$1/ and
-		  push @attr, ['rdf:resource' => $_->[$i]];
+		if ($_->[$i] =~ s/^<(.*)>$/$1/) {
+		    # nodeID is used for blank nodes
+		    if ($_->[$i] =~ /^$self->{ansuri}(.*)$/) {
+			push @attr, ['rdf:nodeID' => "$self->{nIDpref}$1"];
+		    } else {
+			push @attr, ['rdf:resource' => $_->[$i]];
+		    }
+
 		# string2
-		$_->[$i] =~ s/^"""(.*)"""$/$1/s and
+		} elsif ($_->[$i] =~ s/^"""(.*)"""$/$1/s) {
 		  $val = $_->[$i];
+		  
 		# string1
-		$_->[$i] =~ s/^"(.*)"$/$1/ and
-		  $val = $_->[$i];
+		} elsif ($_->[$i] =~ s/^"(.*)"$/$1/) {
+		    $val = $_->[$i];
+
+		} else {
+		    $self->_do_error(402, $_->[$i]);		    
+		}
+
+# 		# URI
+# 		$_->[$i] =~ s/^<(.*)>$/$1/ and
+# 		  push @attr, ['rdf:resource' => $_->[$i]];
+# 		# string2
+# 		$_->[$i] =~ s/^"""(.*)"""$/$1/s and
+# 		  $val = $_->[$i];
+# 		# string1
+# 		$_->[$i] =~ s/^"(.*)"$/$1/ and
+# 		  $val = $_->[$i];
 
 		# escaping literals
 		$val =~ s/</&lt;/g;
