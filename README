@@ -1,0 +1,34 @@
+1. Description
+==============
+
+RDF::Notation3 - RDF/N3 parser, not complete yet.
+
+2. License
+==========
+
+Copyright (c) 2001 Ginger Alliance. All rights reserved. This program is free 
+software; you can redistribute it and/or modify it under the same terms as 
+Perl itself. 
+
+3. Prerequisites
+================
+
+There are no prerequisites for this module.
+
+4. Build and Install
+====================
+
+The module builds and installs in a standard way:
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+To install on Windows (with ActivePerl), just replace "make" with "nmake".
+
+5. To Do
+========
+
+To support the complete syntax as given at:
+http://www.w3.org/DesignIssues/Notation3.html

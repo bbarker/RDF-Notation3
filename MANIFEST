@@ -1,0 +1,11 @@
+Changes
+README
+MANIFEST
+Makefile.PL
+Notation3.pm
+Notation3.pod
+Notation3/Triples.pm
+Notation3/PrefTriples.pm
+Notation3/Reader.pm
+Notation3/Template/TTriples.pm
+test.pl

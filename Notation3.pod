@@ -1,0 +1,157 @@
+# Below is a documentation.
+
+=head1 NAME
+
+RDF::Notation3 - RDF Notation3 parser
+
+=head1 SYNOPSIS
+
+ $rdf = new RDF::Notation3::Triples;
+ $rdf->parse($path);
+ $triples = $rdf->get_triples;
+
+=head1 DESCRIPTION
+
+This module reads N3 files and returns an array of triples. The module is
+in an alpha stage. The support of N3 format is not complete; in particular
+some anonymous nodes ({...}, (...)), reverse commands (<-, -<, is) and 
+escapes are not supported yet. 
+
+RDF::Notation3 is a base class providing the parsing logic. This class is 
+never used directly. Instead, derived classes such as RDF::Notation3::Triples
+are used. The subclasses control how results of parsing are processed and can
+provide additional methods to access the results then.
+
+=head1 CLASSES
+
+=head2 RDF::Notation3::Triples
+
+This class parses a RDF/N3 file and stores triples in memory. Qualified names 
+with prefixes are expanded using a prefix-URI mapping for given context 
+during the parse time.
+
+methods:
+
+=over
+
+=item parse
+
+ $rdf->parse($path);
+
+Parses an N3 file specified by $path. Triples are stored to the 
+$rdf->{triples} array.
+
+=item get_triples
+
+ $triples = $rdf->get_triples($subject, $property, $object, $context);
+
+Returns a reference to array of triples created by the parse method. 
+Arguments are optional. The result set can be filtered for particular subject,
+property, object or context. The array has the same structure as the 
+$rdf->{triples} property.
+
+For example:
+
+ $triples = $rdf->get_triples;
+
+returns all triples, while
+
+ $triples = $rdf->get_triples($subject);
+
+returns only triples containing subject $subject and
+
+ $triples = $rdf->get_triples(undef, $property, $object);
+
+returns only triples containing property $property and object $object.
+
+ $triples = $rdf->get_triples(undef, undef, undef, '<>');
+
+returns all triples from the document (top-level) context.
+
+=back
+
+properties:
+
+=over
+
+=item triples
+
+ $rdf->{triples}
+
+A reference to array of triples created by the parse method. Each triple is
+represented as an array with 4 elements: subject, predicate, object, and 
+context. All nodes are stored as <URI> or "literal". To filter triples use
+get_triples method.
+
+=item ns
+
+ $rdf->{ns}
+
+A reference to hash created by the parse method. The hash keys are context
+URIs (<> for document context and <#c_n> for anonymous contexts). The hash
+values are again hashes keyed with prefixes with ns URIs as values.
+
+=back
+
+=head2 RDF::Notation3::PrefTriples
+
+This class parses a RDF/N3 file and stores triples in memory. Qualified 
+names with prefixes are NOT expanded. The expansion can be done later using 
+the {ns} hash. However, if a prefix-URI binding changes within a context, 
+the result of parsing may be incorrect. Use this class as a faster way to get
+QNames with prefixes if you are SURE the binding doesn't change! Otherwise
+use RDF::Notation3::Triples for correct results.
+
+methods:
+
+=over
+
+=item parse
+
+See RDF::Notation3::Triples.
+
+=item get_triples
+
+See RDF::Notation3::Triples.
+
+=back
+
+properties:
+
+=over
+
+=item triples
+
+ $rdf->{triples}
+
+A reference to array of triples created by the parse method. Each triple is
+represented as an array with 4 elements: subject, predicate, object, and 
+context. All nodes are stored as <URI>, prefix:local or "literal". To filter 
+triples use get_triples method.
+
+=item ns
+
+See RDF::Notation3::Triples.
+
+=back
+
+=head1 VERSION
+
+Current version is 0.20.
+
+=head1 LICENSING
+
+Copyright (c) 2001 Ginger Alliance. All rights reserved. This program is free 
+software; you can redistribute it and/or modify it under the same terms as 
+Perl itself. 
+
+=head1 AUTHOR
+
+Petr Cimprich, petr@gingerall.cz
+
+=head1 SEE ALSO
+
+perl(1).
+
+=cut
+
