@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.82';
+$VERSION = '0.83';
 
 ############################################################
 

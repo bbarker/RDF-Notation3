@@ -1,6 +1,10 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.83  Dec 3, 2002
+	- missing test05.n3 added to MANIFEST and thus
+	  to the package
+
 0.82  Dec 1, 2002
 	- white-spaces are preserved in literals
 	  [patch by Douglas P. Mennella]
