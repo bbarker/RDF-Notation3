@@ -88,11 +88,7 @@ sub get_n3 {
 	    if ($t->[3] eq $c) {
 
 		push @{$tri_tree->{$t->[0]}->{$t->[1]}}, $t->[2];
-		my $exists = 0;
-		foreach (@tri_seq) {
-		    $_ eq $t->[0] and $exists = 1 and last;
-		}
-		push @tri_seq, $t->[0] unless $exists;
+		push @tri_seq, $t->[0] unless grep ($_ eq $t->[0], @tri_seq);
 	    }
 	}
 	# serializing tree

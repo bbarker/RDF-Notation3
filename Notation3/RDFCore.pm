@@ -48,6 +48,76 @@ sub set_storage {
 }
 
 
+sub get_n3 {
+    my ($self, $model) = @_;
+    
+    my $n3 = '';
+    my $tri_tree = {};
+    my @tri_seq = ();
+    my $namespaces = {};
+
+    # building tree
+    my $enumerator = $model->getStmts(undef,undef,undef);
+    my $statement = $enumerator->getNext;
+
+    while (defined $statement) {
+	my $o = $statement->getObject;
+	my $ov = ((ref $o) eq 'RDF::Core::Resource') 
+	  ? '<' . $o->getURI . '>' : '"' . $o->getValue . '"';
+
+	push @{$tri_tree->{$statement->getSubject->getURI}->{$statement->getPredicate->getURI}}, $ov;
+
+	push @tri_seq, $statement->getSubject->getURI 
+	  unless grep($_ eq $statement->getSubject->getURI, @tri_seq);
+	
+	$namespaces->{$statement->getPredicate->getNamespace} 
+	  = $self->_make_prefix unless 
+	    exists $namespaces->{$statement->getPredicate->getNamespace};
+
+	$statement = $enumerator->getNext;
+    }
+    $enumerator->close;
+
+    # namespaces
+    foreach (keys %{$namespaces}) {
+	$n3 .= "\@prefix $namespaces->{$_}: <$_> .\n";
+    }
+
+    # serializing tree
+    foreach my $s (@tri_seq) {
+	$n3 .= "<$s>\n";
+	my @pred = keys %{$tri_tree->{$s}};
+	for (my $i=0; $i < @pred; $i++) {
+	    $n3 .= ' ' x 8;
+
+	    # resolving predicate prefix
+	    my $prefixed = 0;
+	    foreach (keys %$namespaces) {
+		if ($pred[$i] =~ /^$_(.*)$/) {
+		    $n3 .= $namespaces->{$_} . ':' . $1 . ' ';
+		    $prefixed = 1;
+		    last;
+		} 
+	    }
+	    $n3 .= "<$pred[$i]> " unless $prefixed;
+	    
+	    # object
+	    for (my $j=0; $j < @{$tri_tree->{$s}->{$pred[$i]}}; $j++) {
+		$n3 .= $tri_tree->{$s}->{$pred[$i]}->[$j];
+		if ($i == $#pred && $j == @{$tri_tree->{$s}->{$pred[$i]}}-1) {
+		    $n3 .= " .\n";
+		} elsif ($j == @{$tri_tree->{$s}->{$pred[$i]}}-1) {
+		    $n3 .= " ;\n";
+		} else {
+		    $n3 .= " , ";
+		}
+	    }
+	}
+    }
+    return $n3;
+}
+
+
 sub _process_statement {
     my ($self, $subject, $properties) = @_;
 
@@ -107,6 +177,13 @@ sub _expand_prefix {
     $qname =~ s/^\<(.*)\>$/$1/;
 
     return $qname;
+}
+
+
+sub _make_prefix {
+    my $self = shift;
+    $self->{_prefix} ||= 'a';
+    return $self->{_prefix}++;
 }
 
 

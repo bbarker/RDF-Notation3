@@ -23,7 +23,7 @@ terms as Perl itself.
 There are no prerequisites for this module. However, if you want to run
 the SAX driver (RDF::Notation3::SAX), you must install XML::SAX.
 
-To store parsed RDF models you may want to install RDF::Core.
+To store parsed RDF models you may want to install RDF::Core (or RDFStore).
 
 4. Build and Install
 ==================================================
@@ -36,8 +36,3 @@ The module builds and installs in a standard way:
 	make install
 
 To install on Windows (with ActivePerl), just replace "make" with "nmake".
-
-5. To Do
-==================================================
-
-- support of other RDFStore

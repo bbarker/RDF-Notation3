@@ -22,6 +22,7 @@ RDF::Notation3 - RDF Notation3 parser
  $storage = RDF::Core::Storage::Memory->new();
  $rdf->set_storage($storage);
  $model = $rdf->parse_file($path);
+ $n3 = $rdf->get_n3($model);
 
  $rdf = RDF::Notation3::RDFStore->new();
  $rdf->set_options({ Name => 'test', Split => 20 });
@@ -86,9 +87,9 @@ additional statements in form of
 
  current_context <http://www.w3.org/2000/10/swap/log.n3#forSome> anonnode
 
-for anonymous nodes of type [...]. This is a common practice in Notation3
-language, a way to turn this feature off is provided to be compatible with
-RDF/XML parsers.
+for anonymous nodes of type [...] and for contexts {...}. This is a common 
+practice in Notation3 language, the way to turn this feature off is provided 
+to be compatible with RDF/XML parsers.
 
 =back
 
@@ -148,6 +149,13 @@ Returns triples in a line-based, plain text format called N-Triples
 in the form of "subject - predicate - object". The string can be filtered
 using subject, predicate, object, and context exactly in the same way as
 in the of case get_triples method.
+
+=item get_n3
+
+ $n3 = $rdf->get_n3;
+
+This method serializes parsed triples back to an N3 string. Prefixes are not used
+at all.
 
 =item add_prefix
 
@@ -218,6 +226,13 @@ See RDF::Notation3::Triples.
 =item get_triples_as_string
 
 See RDF::Notation3::Triples.
+
+=item get_n3
+
+ $n3 = $rdf->get_n3;
+
+This method serializes parsed triples back to an N3 string. Prefixes are 
+preserved.
 
 =item add_prefix
 
@@ -355,6 +370,13 @@ valid storage specified.
 
 =back
 
+=item get_n3
+
+ $n3 = $rdf->get_n3($model);
+
+This method serializes an RDF::Core model to N3 string. Prefixes are used
+for predicates only so far.
+
 =back
 
 =head2 RDF::Notation3::RDFStore
@@ -385,7 +407,7 @@ supported by RDFStore can be used.
 
 =head1 VERSION
 
-Current version is 0.70.
+Current version is 0.80.
 
 =head1 LICENSING
 

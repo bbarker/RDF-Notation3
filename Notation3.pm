@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.70';
+$VERSION = '0.80';
 
 ############################################################
 
@@ -394,13 +394,13 @@ sub _object {
 	#print ">complete string1: $next\n";
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
-	return $1;
+	return $self->_unesc_string($1);
 
     } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/) {
 	#print ">complete string2: $next\n";
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
-	return $1;
+	return $self->_unesc_string($1);
 
     } elsif ($next eq '"' or $next =~ /^"[^\"]/) {
 	#print ">start of string1: $next\n";
@@ -422,7 +422,7 @@ sub _object {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
 	$self->_do_error(114, $tk) if $tk =~ / EOL /;
-	return $tk;
+	return $self->_unesc_string($tk);
 
     } elsif ($next eq '"""' or $next =~ /^"""[^\"]/) {
 	#print ">start of string2: $next\n";
@@ -444,7 +444,7 @@ sub _object {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
 	$tk =~ s/  EOL  /\n/g;
-	return $tk;
+	return $self->_unesc_string($tk);
 
     } else {
 	#print ">object is node: $next\n";
@@ -501,7 +501,8 @@ sub _anonymous_node {
 
 	my $parent_context = $self->{context};
 	$self->{context} = $genid;
-	$self->_statement_list;
+	$self->_exist_quantif($genid); # quantifying the new context
+	$self->_statement_list;        # parsing nested statements
 	$self->{context} = $parent_context;
 
 	# next step
@@ -650,6 +651,25 @@ sub _unesc_qname {
     for ($i=0; $i<@unesc; $i++) { $qname =~ s/<$i>/$unesc[$i]/; }
     #print ">unescaped qname: $qname\n";
     return $qname;
+}
+
+
+sub _unesc_string {
+    my ($self, $str) = @_;
+
+    $str =~ s/\\newline//go;
+    $str =~ s/\\\\/\\/go;
+    $str =~ s/\\'/'/go;
+    $str =~ s/\\"/"/go;
+    $str =~ s/\\n/\n/go;
+    $str =~ s/\\r/\r/go;
+    $str =~ s/\\t/\t/go;
+    $str =~ s/\\u([\da-fA-F]{4})/pack('U',hex($1))/ge;
+    $str =~ s/\\U00([\da-fA-F]{6})/pack('U',hex($1))/ge;
+    $str =~ s/\\([\da-fA-F]{3})/pack('C',oct($1))/ge; #deprecated
+    $str =~ s/\\x([\da-fA-F]{2})/pack('C',hex($1))/ge; #deprecated
+    
+    return $str;
 }
 
 ########################################
