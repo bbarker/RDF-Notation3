@@ -23,6 +23,10 @@ RDF::Notation3 - RDF Notation3 parser
  $rdf->set_storage($storage);
  $model = $rdf->parse_file($path);
 
+ $rdf = RDF::Notation3::RDFStore->new();
+ $rdf->set_options({ Name => 'test', Split => 20 });
+ $model  = $rdf->parse_file($path);
+
 =head1 DESCRIPTION
 
 This module is an RDF/N3 parser; it can parse N3 files or strings and provide
@@ -353,9 +357,35 @@ valid storage specified.
 
 =back
 
+=head2 RDF::Notation3::RDFStore
+
+This class parses an RDF/N3 file and returns an RDFStore model object.
+The model is stored either in memory or persistently, according to passed
+options. See RDFStore docs for details.
+
+methods:
+
+=over
+
+=item parse_file, parse_string
+
+ $model = $rdf->parse_file($path);
+ $model = $rdf->parse_string($string);
+
+Both methods return a model object.
+
+=item set_options
+
+ $rdf->set_options($options);
+
+Options are simply passed to the RDFStore::Model constructor. Thus all options
+supported by RDFStore can be used.
+
+=back
+
 =head1 VERSION
 
-Current version is 0.60.
+Current version is 0.70.
 
 =head1 LICENSING
 
@@ -369,6 +399,6 @@ Petr Cimprich (Ginger Alliance), petr@gingerall.cz
 
 =head1 SEE ALSO
 
-perl(1), RDF::Core.
+perl(1), RDF::Core, RDFStore.
 
 =cut

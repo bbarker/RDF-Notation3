@@ -6,6 +6,7 @@ use ExtUtils::MakeMaker;
 my %opts = (
 	    XML::SAX => "RDF::Notation3::SAX class can't be used",
 	    RDF::Core => "RDF::Notation3::RDFCore class can't be used",
+	    RDFStore => "RDF::Notation3::RDFStore class can't be used",
 	   );
 
 foreach (keys %opts) {

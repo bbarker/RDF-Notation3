@@ -11,6 +11,7 @@ Notation3/PrefTriples.pm
 Notation3/XML.pm
 Notation3/SAX.pm
 Notation3/RDFCore.pm
+Notation3/RDFStore.pm
 Notation3/Template/TReader.pm
 Notation3/Template/TTriples.pm
 Notation3/Template/TXML.pm

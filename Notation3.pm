@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.60';
+$VERSION = '0.70';
 
 ############################################################
 
@@ -108,10 +108,10 @@ sub _statement_list {
     #print ">statement list: $next\n";
 
     while ($next ne ' EOF ') {
-	if ($next =~ /^(?:|#.*)$/o) {
+	if ($next =~ /^(?:|#.*)$/) {
 	    $self->_space;
 
-	} elsif ($next =~ /^}/o) {
+	} elsif ($next =~ /^}/) {
 	    #print ">end of nested statement list: $next\n";
 	    last;
 
@@ -143,7 +143,7 @@ sub _statement {
     my $next = $self->{reader}->try;
     #print ">statement starts: $next\n";
 
-    if ($next =~ /^\@prefix|bind$/o) {
+    if ($next =~ /^\@prefix|bind$/) {
 	$self->_directive;
 	
     } else {
@@ -181,16 +181,7 @@ sub _node {
     my $next = $self->_eat_EOLs;
     #print ">node: $next\n";
 
-    # separate stuck tokens
-#     if ($next =~ /^([^,;\.\[\]\{\}\(\)]+)([,;\.\[\]\{\}\(\)].*)$/o) { #???
-# 	my $tk = $self->{reader}->get;
-# 	unshift @{$self->{reader}->{tokens}}, $2;
-# 	unshift @{$self->{reader}->{tokens}}, $1;
-# 	$next = $1;
-# 	#print ">cleaned node: $next\n";
-#     }
-
-    if ($next =~ /^[\[\{\(]/o) {
+    if ($next =~ /^[\[\{\(]/) {
 	#print ">node is anonnode\n";
 	return $self->_anonymous_node;
 
@@ -199,14 +190,14 @@ sub _node {
 	$self->{reader}->get;
 	return "$self->{context}";
 
-    } elsif ($next =~ /^(<[^>]*>|^(?:[_a-zA-Z]\w*)?:[a-zA-Z]\w*)(.*)$/o) {
+    } elsif ($next =~ /^(<[^>]*>|^(?:[_a-zA-Z]\w*)?:[_a-zA-Z][_\w]*)(.*)$/) {
 	#print ">node is uri_ref2: $next\n";
+
 	if ($2) {
 	    $self->{reader}->get;
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	    unshift @{$self->{reader}->{tokens}}, $1;
-	    $next = $1;
-	    #print ">cleaned uri_ref2: $next\n";
+	    #print ">cleaned uri_ref2: $1\n";
 	}
 	return $self->_uri_ref2;
 
@@ -224,7 +215,7 @@ sub _directive {
 
     if ($tk eq '@prefix') {
 	my $tk = $self->{reader}->get;
-	if ($tk =~ /^([_a-zA-Z]\w*)?:$/o) {
+	if ($tk =~ /^([_a-zA-Z]\w*)?:$/) {
 	    my $pref = $1;
 	    #print ">nprefix: $pref\n" if $pref;
 
@@ -250,7 +241,7 @@ sub _uri_ref2 {
 
     # possible end of statement, a simple . check is done
     my $next = $self->{reader}->try;
-    if ($next =~ /^(.+)\.$/o) {
+    if ($next =~ /^(.+)\.$/) {
 	$self->{reader}->{tokens}->[0] = '.';
 	unshift @{$self->{reader}->{tokens}}, $1;
     }
@@ -258,11 +249,11 @@ sub _uri_ref2 {
     my $tk = $self->{reader}->get;
     #print ">uri_ref2: $tk\n";
 
-    if ($tk =~ /^<[^>]*>$/o) {
+    if ($tk =~ /^<[^>]*>$/) {
 	#print ">URI\n";
 	return $tk;
 
-    } elsif ($tk =~ /^([_a-zA-Z]\w*)?:[a-zA-Z]\w*$/o) {
+    } elsif ($tk =~ /^([_a-zA-Z]\w*)?:[a-zA-Z]\w*$/) {
 	#print ">qname ($1:)\n" if $1;
 
 	my $pref = '';
@@ -270,8 +261,10 @@ sub _uri_ref2 {
 	if ($pref eq '_') { # workaround to parse N-Triples
 	    $self->{ns}->{$self->{context}}->{_} = $self->{ansuri}
 		unless $self->{ns}->{$self->{context}}->{_};
-
 	}
+
+	# Identifier demunging
+	$tk = _unesc_qname($tk) if $tk =~ /_/;
 	return $tk;
 
     } else {
@@ -287,7 +280,7 @@ sub _property_list {
 
     $next = $self->_check_inline_comment($next);
 
-    if ($next =~ /^:-/o) {
+    if ($next =~ /^:-/) {
 	#print ">anonnode\n";
 	# TBD
 	$self->_do_error(199, $next);
@@ -373,7 +366,7 @@ sub _object_list {
     $next = $self->_check_inline_comment($next);
 
     # possible end of entity, check for sticked next char is done
-    while ($next =~ /^([^"]+)([,;\.\}\]\)])$/o) {
+    while ($next =~ /^([^"]+)([,;\.\}\]\)])$/) {
 	$self->{reader}->{tokens}->[0] = $2;
 	unshift @{$self->{reader}->{tokens}}, $1;
 	$next = $1;
@@ -397,27 +390,27 @@ sub _object {
     my $next = $self->_eat_EOLs;
     #print ">object: $next\n";
 
-    if ($next =~ /^("(?:\\"|[^\"])*")([\.;,\]\}\)])*$/o) {
+    if ($next =~ /^("(?:\\"|[^\"])*")([\.;,\]\}\)])*$/) {
 	#print ">complete string1: $next\n";
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
 	return $1;
 
-    } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/o) {
+    } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/) {
 	#print ">complete string2: $next\n";
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
 	return $1;
 
-    } elsif ($next eq '"' or $next =~ /^"[^\"]/o) {
+    } elsif ($next eq '"' or $next =~ /^"[^\"]/) {
 	#print ">start of string1: $next\n";
 	my $tk = $self->{reader}->get;
 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
-	until ($tk =~ /"[\.;,\]\}\)]?$/o) {
+	until ($tk =~ /"[\.;,\]\}\)]?$/) {
 	    my $next = $self->{reader}->try;
 	    #print ">next part: $next\n";
 	    my $tk2;
-	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/o) {
+	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/) {
 		$tk2 = $self->{reader}->get;
 		$tk .= " $tk2";
 	    } else {
@@ -428,18 +421,18 @@ sub _object {
 	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
-	$self->_do_error(114, $tk) if $tk =~ / EOL /o;
+	$self->_do_error(114, $tk) if $tk =~ / EOL /;
 	return $tk;
 
-    } elsif ($next eq '"""' or $next =~ /^"""[^\"]/o) {
+    } elsif ($next eq '"""' or $next =~ /^"""[^\"]/) {
 	#print ">start of string2: $next\n";
 	my $tk = $self->{reader}->get;
 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
-	until ($tk =~ /"""[\.;,\]\}\)]?$/o) {
+	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
 	    my $next = $self->{reader}->try;
 	    #print ">next part: $next\n";
 	    my $tk2;
-	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/o) {
+	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/) {
 		$tk2 = $self->{reader}->get;
 		$tk .= " $tk2";
 	    } else {
@@ -450,7 +443,7 @@ sub _object {
 	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"""/) {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
-	$tk =~ s/  EOL  /\n/go;
+	$tk =~ s/  EOL  /\n/g;
 	return $tk;
 
     } else {
@@ -463,7 +456,7 @@ sub _object {
 sub _anonymous_node {
     my ($self) = @_;
     my $next = $self->{reader}->try;
-    $next =~ /^([\[\{\(])(.*)$/o;
+    $next =~ /^([\[\{\(])(.*)$/;
     #print ">anonnode1: $1\n";
     #print ">anonnode2: $2\n";
 
@@ -486,7 +479,7 @@ sub _anonymous_node {
 	# next step
 	$next = $self->_eat_EOLs;
 	my $tk = $self->{reader}->get;
-	if ($tk =~ /^\](.+)$/o) {
+	if ($tk =~ /^\](.+)$/) {
 	    unshift @{$self->{reader}->{tokens}}, $1;
 	} elsif ($tk ne ']') {
 	    $self->_do_error(107, $tk);
@@ -515,7 +508,7 @@ sub _anonymous_node {
 	$self->_eat_EOLs;
  	my $tk = $self->{reader}->get;
 	#print ">next token: $tk\n";
-	if ($tk =~ /^\}([,;\.\]\}\)])?$/o) {
+	if ($tk =~ /^\}([,;\.\]\}\)])?$/) {
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
 	} else {
 	    $self->_do_error(108, $tk);
@@ -526,8 +519,8 @@ sub _anonymous_node {
 	#print ">anonnode: ()\n";
 	my $next = $self->_eat_EOLs;
 
-#	if ($next =~ /^\)([,;\.\]\}\)])*$/o) {
-	if ($next =~ /^\)(.*)$/o) {
+#	if ($next =~ /^\)([,;\.\]\}\)])*$/) {
+	if ($next =~ /^\)(.*)$/) {
 	    #print ">void ()\n";
 	    $self->{reader}->get;
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
@@ -538,17 +531,17 @@ sub _anonymous_node {
 
 	    #print ">anonnode () starts: $next\n";
 	    my @nodes = ();
- 	    until ($next =~ /^.*\)[,;\.\]\}\)]*$/o) {
-		push @nodes, $self->_node;
+ 	    until ($next =~ /^.*\)[,;\.\]\}\)]*$/) {
+		push @nodes, $self->_object;
  		$next = $self->_eat_EOLs;
  	    }
-	    if ($next =~ /^([^)]*)\)([,;\.\]\}\)]*)$/o) {
+	    if ($next =~ /^([^)]*)\)([,;\.\]\}\)]*)$/) {
 		$self->{reader}->get;
 		unshift @{$self->{reader}->{tokens}}, $2 if $2;
 		unshift @{$self->{reader}->{tokens}}, ')';
 		if ($1) {
 		    unshift @{$self->{reader}->{tokens}}, $1;
-		    push @nodes, $self->_node;
+		    push @nodes, $self->_object;
 		}
 		$self->{reader}->get;
 	    }
@@ -577,6 +570,8 @@ sub _anonymous_node {
     }
 }
 
+########################################
+# utils
 
 sub _exist_quantif {
     my ($self, $anode) = @_;
@@ -610,7 +605,7 @@ sub _eat_EOLs {
 sub _check_inline_comment {
     my ($self, $next) = @_;
 
-    if ($next =~ /^#/o) { 
+    if ($next =~ /^#/) { 
 	$self->_space;
 	$next = $self->_eat_EOLs;
     }
@@ -638,6 +633,25 @@ sub _built_in_verb {
 }
 
 
+sub _unesc_qname {
+    my $qname = shift;
+
+    #print ">escaped qname: $qname\n";
+    my $i = 0;
+    my @unesc = ();
+    while ($qname =~ /(__+)/) {
+	my $res = substr(sprintf("%b", length($1) + 1), 1);
+	$res =~ s/1/-/g;
+	$res =~ s/0/_/g;
+	$qname =~ s/__+/<$i>/;
+	push @unesc, $res;
+	$i++;
+    }
+    for ($i=0; $i<@unesc; $i++) { $qname =~ s/<$i>/$unesc[$i]/; }
+    #print ">unescaped qname: $qname\n";
+    return $qname;
+}
+
 ########################################
 
 sub _do_error {
@@ -655,8 +669,8 @@ sub _do_error {
 	104 => 'end of verb (->) expected',
 	105 => 'invalid characters in string1',
 	106 => 'namespace prefix not bound',
-	107 => 'invalid end of annonode, ] expected',
-	108 => 'invalid end of annonode, } expected',
+	107 => 'invalid end of anonnode, ] expected',
+	108 => 'invalid end of anonnode, } expected',
 	109 => 'end of verb (of) expected',
 	110 => 'end of verb (-<) expected',
 	111 => 'string1 ("...") is not terminated',
@@ -677,6 +691,7 @@ sub _do_error {
 
 	501 => '[RDFCore] literal not allowed as subject',
 	502 => '[RDFCore] valid storage not specified',
+	503 => '[RDFStore] literal not allowed as subject',
 	);
 
     my $msg = "[Error $n]";
@@ -688,6 +703,7 @@ sub _do_error {
 
 
 1;
+
 
 
 

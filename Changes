@@ -1,6 +1,12 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.70  Mar 21, 2002
+	- added support for RDFStore
+	- strings allowed in () anonnodes
+	- unescaping of munged identifiers 
+	  (sequences of "_" into "-" and "_")
+
 0.60  Mar 14, 2002
 	- fixed a bug in add_triple
 	- added support for RDF::Core
@@ -39,5 +45,3 @@ Revision history for Perl extension RDF::Notation3
 0.01  Oct 1, 2001
 	- original version; created by h2xs 1.20
 	- supports a useful subset of Notation3
-
-
