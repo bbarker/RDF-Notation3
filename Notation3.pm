@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.80';
+$VERSION = '0.81';
 
 ############################################################
 
@@ -29,15 +29,7 @@ sub new {
 sub parse_file {
     my ($self, $path) = @_;
 
-    $self->{ns} = {};
-    $self->{context} = '<>';
-    $self->{gid} = 1;
-    $self->{cid} = 1;
-    $self->{hardns} = {
-	rdf  => ['rdf','http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
-	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
-	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
-	};
+    $self->_define;
 
     open(FILE, "$path") or $self->_do_error(2, $path);
     my $fh = *FILE;
@@ -53,15 +45,7 @@ sub parse_file {
 sub parse_string {
     my ($self, $str) = @_;
 
-    $self->{ns} = {};
-    $self->{context} = '<>';
-    $self->{gid} = 1;
-    $self->{cid} = 1;
-    $self->{hardns} = {
-	rdf  => ['rdf','http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
-	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
-	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
-	};
+    $self->_define;
 
     my $t = new RDF::Notation3::ReaderString($str);
     $self->{reader} = $t;
@@ -88,6 +72,21 @@ sub quantification {
     } else {
 	return $self->{quantif};
     }
+}
+
+
+sub _define {
+    my ($self) = @_;
+
+    $self->{ns} = {};
+    $self->{context} = '<>';
+    $self->{gid} = 1;
+    $self->{cid} = 1;
+    $self->{hardns} = {
+	rdf  => ['rdf','http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
+	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
+	};
 }
 
 

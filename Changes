@@ -1,6 +1,11 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.81  Aug 15, 2002
+	- Std. prefixes (rdf, daml, log) are preserved
+	  when serializing RDF::Core models to N3
+	- fixed a bug in test.pl (Perl 5.8)
+
 0.80  Aug 12, 2002
 	- existential quantification for contexts
 	- serialization to N3 added for RDF::Core models

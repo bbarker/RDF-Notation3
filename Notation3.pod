@@ -407,7 +407,7 @@ supported by RDFStore can be used.
 
 =head1 VERSION
 
-Current version is 0.80.
+Current version is 0.81.
 
 =head1 LICENSING
 

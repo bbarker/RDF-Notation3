@@ -55,6 +55,8 @@ sub get_n3 {
     my $tri_tree = {};
     my @tri_seq = ();
     my $namespaces = {};
+    map($namespaces->{$self->{hardns}->{$_}->[1]} = $_,
+	keys %{$self->{hardns}});
 
     # building tree
     my $enumerator = $model->getStmts(undef,undef,undef);

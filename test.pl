@@ -11,7 +11,6 @@ END {print "Passed\n" if $sum == 10;}
 use RDF::Notation3::Triples;
 use RDF::Notation3::PrefTriples;
 use RDF::Notation3::XML;
-use RDF::Notation3::SAX;
 use MyHandler;
 use MyErrorHandler;
 
@@ -83,7 +82,7 @@ if ($@) {
     my $ret = `perl sax.pl test04.n3`;
     chdir('..');
     $ret =~ /(\d+)$/ and my $rc = $1;
-    $r[8] = 1 if $rc == 13;
+    $r[8] = 1 if $rc == 17;
     print "not ok 9\n" unless $r[8];
     print "ok 9\n" if $r[8];
 }
