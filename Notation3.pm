@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-our $VERSION = '0.30';
+our $VERSION = '0.40';
 
 ############################################################
 
@@ -17,7 +17,7 @@ sub new {
     my ($class) = @_;
 
     my $self = {
-	ansuri => '#',
+	ansuri  => '#',
     };
 
     bless $self, $class;
@@ -76,33 +76,29 @@ sub _document {
     if ($next ne ' EOF ') {
 	$self->_statement_list;
     }
+    #print ">end\n";
 }
 
 
 sub _statement_list {
     my ($self) = @_;
-    my $next = $self->{reader}->try;
+    my $next = $self->_eat_EOLs;
     #print ">statement list: $next\n";
 
-    while ($next eq ' EOL ') {
-	$self->{reader}->get;
-	$next = $self->{reader}->try;
-    }
-
-    if ($next ne ' EOF ') {
+    while ($next ne ' EOF ') {
 	if ($next =~ /^(|#.*)$/) {
 	    $self->_space;
-	    $self->_statement_list;
 
 	} elsif ($next =~ /^}/) {
 	    #print ">end of nested statement list: $next\n";
+	    last;
 
 	} else {
 	    $self->_statement;	    
 	}
-    } else {
-	#print ">end\n";
+	$next = $self->_eat_EOLs;
     }
+    #print ">end of statement list: $next\n";
 }
 
 
@@ -134,21 +130,26 @@ sub _statement {
 
 	my $properties = [];
 	$self->_property_list($properties);
-	
+
+	#print ">CONTEXT: $self->{context}\n";
+	#print ">SUBJECT: $subject\n";
+	#foreach (@$properties) {
+	    #print ">PROPERTY: ", join('-', @$_), "\n";
+	#}
+
 	$self->_process_statement($subject, $properties)
     }
     # next step
-    $next = $self->{reader}->try;
+    $next = $self->_eat_EOLs;
     if ($next eq '.') {
 	$self->{reader}->get;
-	$self->_statement_list;
     }
 }
-
+ 
 
 sub _node {
     my ($self) = @_;
-    my $next = $self->{reader}->try;
+    my $next = $self->_eat_EOLs;
     #print ">node: $next\n";
 
     if ($next =~ /^([\[\{\(])(.*)$/) {
@@ -232,13 +233,8 @@ sub _uri_ref2 {
 
 sub _property_list {
     my ($self, $properties) = @_;
-    my $next = $self->{reader}->try;
+    my $next = $self->_eat_EOLs;
     #print ">property list: $next\n";
-
-    while ($next eq ' EOL ') {
-	$self->{reader}->get;
-	$next = $self->{reader}->try;
-    }
 
     if ($next =~ /^:-/) {
 	#print ">anonnode\n";
@@ -261,9 +257,8 @@ sub _property_list {
 	#print ">inverse mode\n" if ($next eq 'is' or $next eq '<-');
 	push @$properties, $objects;
     }
-
     # next step
-    $next = $self->{reader}->try;
+    $next = $self->_eat_EOLs;
     if ($next eq ';') {
 	$self->{reader}->get;
 	$self->_property_list($properties);
@@ -311,7 +306,7 @@ sub _verb {
     } elsif ($next eq '=') {
 	$self->{reader}->get;
 	$self->{ns}->{$self->{context}}->{daml} #prefix can be in use
-	  = 'http://www.daml.org/2000/10/daml-ont#' 
+	  = 'http://www.daml.org/2001/03/daml+oil#' 
 	    unless $self->{ns}->{$self->{context}}->{daml};
 	return 'daml:equivalentTo';
 
@@ -324,48 +319,38 @@ sub _verb {
 
 sub _object_list {
     my ($self, $objects) = @_;
-    my $next = $self->{reader}->try;
+    my $next = $self->_eat_EOLs;
     #print ">object list: $next\n";
 
-    while ($next eq ' EOL ') {
-	$self->{reader}->get;
-	$next = $self->{reader}->try;
+    if ($next =~ /^#/) { # comment inside object list
+	$self->_space;
+	$next = $self->_eat_EOLs;
     }
 
-    if ($next =~ /^#/) { # comment inside object list
-	$self->_space;	
-	
-    } else {
-	# possible end of entity, check for sticked next char is done
-	while ($next =~ /^(.+)([,;\.\}\]\)])$/) {
-	    $self->{reader}->{tokens}->[0] = $2;
-	    unshift @{$self->{reader}->{tokens}}, $1;
-	    $next = $1;
-	}
+    # possible end of entity, check for sticked next char is done
+    while ($next =~ /^(.+)([,;\.\}\]\)])$/) {
+	$self->{reader}->{tokens}->[0] = $2;
+	unshift @{$self->{reader}->{tokens}}, $1;
+	$next = $1;
+    }
 
-	my $obj = $self->_object;
-	#print ">object is back: $obj\n";
-	push @$objects, $obj;
+    my $obj = $self->_object;
+    #print ">object is back: $obj\n";
+    push @$objects, $obj;
 
-	# next step
-	$next = $self->{reader}->try;
-	if ($next eq ',') {
-	    $self->{reader}->get;
-	    $self->_object_list($objects);
-	}
+    # next step
+    $next = $self->_eat_EOLs;
+    if ($next eq ',') {
+	$self->{reader}->get;
+	$self->_object_list($objects);
     }
 }
 
 
 sub _object {
     my ($self) = @_;
-    my $next = $self->{reader}->try;
+    my $next = $self->_eat_EOLs;
     #print ">object: $next\n";
-
-    while ($next eq ' EOL ') {
-	$self->{reader}->get;
-	$next = $self->{reader}->try;
-    }
 
     if ($next =~ /^"(\\"|[^\"])*"$/) {
 	#print ">complete string1: $next\n";
@@ -430,6 +415,8 @@ sub _object {
 
 sub _anonymous_node {
     my ($self) = @_;
+    my $next = $self->{reader}->try;
+    $next =~ /^([\[\{\(])(.*)$/;
     #print ">anonnode1: $1\n";
     #print ">anonnode2: $2\n";
 
@@ -443,8 +430,9 @@ sub _anonymous_node {
 	$self->_statement($genid);
 
 	# next step
+	my $next = $self->_eat_EOLs;
 	my $tk = $self->{reader}->get;
-	if ($tk =~ /^\]([,;\.])$/) {
+	if ($tk =~ /^\]([,;\.\]\}\)])$/) {
 	    unshift @{$self->{reader}->{tokens}}, $1;
 	} elsif ($tk ne ']') {
 	    $self->_do_error(107, $tk);
@@ -470,10 +458,10 @@ sub _anonymous_node {
 	$self->{context} = $parent_context;
 
 	# next step
+	$self->_eat_EOLs;
  	my $tk = $self->{reader}->get;
- 	$tk = $self->{reader}->get if $tk eq ' EOL ';
-
-	if ($tk =~ /^\}([,;\.])?$/) {
+	#print ">next token: $tk\n";
+	if ($tk =~ /^\}([,;\.\]\}\)])?$/) {
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
 	} else {
 	    $self->_do_error(108, $tk);
@@ -482,10 +470,64 @@ sub _anonymous_node {
 
     } else {
 	#print ">anonnode: ()\n";
-	$self->_do_error(201, 'n/a');
+	my $next = $self->_eat_EOLs;
+
+	if ($next =~ /^\)([,;\.\]\}\)])*$/) {
+	    #print ">void ()\n";
+	    $self->{reader}->get;
+	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
+	    return '<http://www.daml.org/2001/03/daml+oil#nil>';
+	} else {
+
+	    #print ">anonnode () starts: $next\n";
+	    my @nodes = ();
+ 	    until ($next =~ /^(.*)\)([,;\.\]\}\)]*)$/) {
+		push @nodes, $self->_node;
+ 		$next = $self->_eat_EOLs;
+ 	    }
+	    if ($next =~ /^([^)]*)\)([,;\.\]\}\)]*)$/) {
+		$self->{reader}->get;
+		unshift @{$self->{reader}->{tokens}}, $2 if $2;
+		unshift @{$self->{reader}->{tokens}}, ')';
+		if ($1) {
+		    unshift @{$self->{reader}->{tokens}}, $1;
+		    push @nodes, $self->_node;
+		}
+		$self->{reader}->get;
+	    }
+	    my $i = 0;
+	    my @expnl = (); # expanded node list
+	    foreach (@nodes) {
+		$i++;
+		push @expnl, '[';
+		push @expnl, '<http://www.daml.org/2001/03/daml+oil#first>';
+		push @expnl, $_;
+		push @expnl, ';';
+		push @expnl, '<http://www.daml.org/2001/03/daml+oil#rest>';
+		push @expnl, '<http://www.daml.org/2001/03/daml+oil#nil>' 
+		  if $i == scalar @nodes;
+	    }
+	    for (my $j = 0; $j < $i; $j++) {push @expnl, ']'}
+	    unshift @{$self->{reader}->{tokens}}, @expnl;
+	    my $exp = join(' ', @expnl);
+	    #print ">expanded: $exp\n";
+	    my $genid = $self->_anonymous_node;
+	    return $genid;
+	}
     }
 }
 
+
+sub _eat_EOLs {
+    my ($self) = @_;
+
+    my $next = $self->{reader}->try;
+    while ($next eq ' EOL ') {
+	$self->{reader}->get;
+	$next = $self->{reader}->try;
+    }
+    return $next;
+}
 
 ########################################
 
@@ -512,7 +554,6 @@ sub _do_error {
 	113 => 'string2 is not terminated',
 	114 => 'string1 can\'t include newlines',
 
-	201 => 'anonymous node of type () not supported yet',
 	202 => ':- token not supported yet',
 	);
 

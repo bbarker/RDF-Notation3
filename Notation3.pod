@@ -95,6 +95,16 @@ returns only triples containing property $property and object $object.
 
 returns all triples from the document (top-level) context.
 
+=item get_triples_as_string
+
+ $triples = $rdf->get_triples_as_string($subject, $property, $object, $context);
+
+Returns triples in a line-based, plain text format called N-Triples
+(http://www.w3.org/2001/sw/RDFCore/ntriples/). Each line contains one triple
+in the form of "subject - predicate - object". The string can be filtered
+using subject, predicate, object, and context exactly in the same way as
+in the of case get_triples method.
+
 =back
 
 properties:
@@ -145,6 +155,10 @@ See RDF::Notation3::Triples.
 
 See RDF::Notation3::Triples.
 
+=item get_triples_as_string
+
+See RDF::Notation3::Triples.
+
 =back
 
 properties:
@@ -168,7 +182,7 @@ See RDF::Notation3::Triples.
 
 =head1 VERSION
 
-Current version is 0.30.
+Current version is 0.40.
 
 =head1 LICENSING
 

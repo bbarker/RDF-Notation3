@@ -8,7 +8,6 @@ http://www.w3.org/DesignIssues/Notation3.html.
 Features not supported yet include:
 
 - property lists with :-
-- anonymous nodes of type (nodelist)
 - operators
 
 2. License
@@ -38,5 +37,5 @@ To install on Windows (with ActivePerl), just replace "make" with "nmake".
 5. To Do
 ==================================================
 
-- to support complete N3 syntax
-- to convert to XML
+- support of complete N3 syntax
+- conversion to RDF/XML

@@ -51,6 +51,25 @@ sub get_triples {
 }
 
 
+sub get_triples_as_string {
+    my ($self, $subj, $verb, $obj, $context) = @_;
+    my $triples = '';
+
+    foreach (@{$self->{triples}}) {
+	if (not $subj or ($subj eq $_->[0])) {
+	    if (not $verb or ($verb eq $_->[1])) {
+		if (not $obj or ($obj eq $_->[2])) {
+		    if (not $context or ($context eq $_->[3])) {
+			$triples .= "$_->[0] $_->[1] $_->[2]\n";
+		    }
+		}
+	    }
+	}
+    }
+    return $triples;
+}
+
+
 1;
 
 

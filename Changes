@@ -1,20 +1,26 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
-0.30  xxx
+0.40  Oct 25, 2001
+	- (...) anonymous nodes supported
+	- serialization to N-Triples 
+	  (get_triples_as_string method)
+	- minor bugs fixed
+
+0.30  Oct 17, 2001
 	- {...} anonymous nodes supported
 	- inverse verbs (is, <-) supported
 	- N-Triples anonnode format (_:a) supported
 	- parse_file and parse_string methods
 
-0.20  Thu Oct 11
+0.20  Oct 11, 2001
 	- [...] anonymous nodes supported
 	- Reader bug fixed
 
-0.10  Tue Oct 9
+0.10  Oct 9, 2001
 	- redesigned as token based parser
 
-0.01  Mon Oct 1
+0.01  Oct 1, 2001
 	- original version; created by h2xs 1.20
 	- supports a useful subset of Notation3
 
