@@ -407,7 +407,7 @@ supported by RDFStore can be used.
 
 =head1 VERSION
 
-Current version is 0.81.
+Current version is 0.82.
 
 =head1 LICENSING
 
@@ -418,6 +418,10 @@ as Perl itself.
 =head1 AUTHOR
 
 Petr Cimprich (Ginger Alliance), petr@gingerall.cz
+
+=head1 CONTRIBUTORS
+
+Douglas P. Mennella, mennella@mindspring.com
 
 =head1 SEE ALSO
 

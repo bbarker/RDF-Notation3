@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.81';
+$VERSION = '0.82';
 
 ############################################################
 
@@ -387,63 +387,64 @@ sub _object_list {
 sub _object {
     my ($self) = @_;
     my $next = $self->_eat_EOLs;
-    #print ">object: $next\n";
+    #print ">object: $next:\n";
 
     if ($next =~ /^("(?:\\"|[^\"])*")([\.;,\]\}\)])*$/) {
 	#print ">complete string1: $next\n";
 	my $tk = $self->{reader}->get;
 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
 	return $self->_unesc_string($1);
+# #--
+#     } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/) {
+# 	##print ">complete string2: $next\n";
+# 	my $tk = $self->{reader}->get;
+# 	unshift @{$self->{reader}->{tokens}}, $2 if $2;
+# 	return $self->_unesc_string($1);
 
-    } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/) {
-	#print ">complete string2: $next\n";
-	my $tk = $self->{reader}->get;
-	unshift @{$self->{reader}->{tokens}}, $2 if $2;
-	return $self->_unesc_string($1);
+#     } elsif ($next eq '"' or $next =~ /^"[^\"]/) {
+# 	##print ">start of string1: $next\n";
+# 	my $tk = $self->{reader}->get;
+# 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
+# 	until ($tk =~ /"[\.;,\]\}\)]?$/) {
+# 	    my $next = $self->{reader}->try;
+# 	    ##print ">next part: $next\n";
+# 	    my $tk2;
+# 	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/) {
+# 		$tk2 = $self->{reader}->get;
+# 		$tk .= " $tk2";
+# 	    } else {
+# 		$self->_do_error(105, $next);
+# 	    }
+# 	    $self->_do_error(111, $tk2) if $tk2 eq ' EOF ';
+# 	}
+# 	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
+# 	    unshift @{$self->{reader}->{tokens}}, $2;
+# 	}
+# 	$self->_do_error(114, $tk) if $tk =~ / EOL /;
+# 	return $self->_unesc_string($tk);
 
-    } elsif ($next eq '"' or $next =~ /^"[^\"]/) {
-	#print ">start of string1: $next\n";
-	my $tk = $self->{reader}->get;
-	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
-	until ($tk =~ /"[\.;,\]\}\)]?$/) {
-	    my $next = $self->{reader}->try;
-	    #print ">next part: $next\n";
-	    my $tk2;
-	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/) {
-		$tk2 = $self->{reader}->get;
-		$tk .= " $tk2";
-	    } else {
-		$self->_do_error(105, $next);
-	    }
-	    $self->_do_error(111, $tk2) if $tk2 eq ' EOF ';
-	}
-	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
-	    unshift @{$self->{reader}->{tokens}}, $2;
-	}
-	$self->_do_error(114, $tk) if $tk =~ / EOL /;
-	return $self->_unesc_string($tk);
-
-    } elsif ($next eq '"""' or $next =~ /^"""[^\"]/) {
-	#print ">start of string2: $next\n";
-	my $tk = $self->{reader}->get;
-	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
-	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
-	    my $next = $self->{reader}->try;
-	    #print ">next part: $next\n";
-	    my $tk2;
-	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/) {
-		$tk2 = $self->{reader}->get;
-		$tk .= " $tk2";
-	    } else {
-		$self->_do_error(112, $next);
-	    }
-	    $self->_do_error(113, $tk2) if $tk2 eq ' EOF ';
-	}
-	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"""/) {
-	    unshift @{$self->{reader}->{tokens}}, $2;
-	}
-	$tk =~ s/  EOL  /\n/g;
-	return $self->_unesc_string($tk);
+#     } elsif ($next eq '"""' or $next =~ /^"""[^\"]/) {
+# 	##print ">start of string2: $next\n";
+# 	my $tk = $self->{reader}->get;
+# 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
+# 	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
+# 	    my $next = $self->{reader}->try;
+# 	    ##print ">next part: $next\n";
+# 	    my $tk2;
+# 	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/) {
+# 		$tk2 = $self->{reader}->get;
+# 		$tk .= " $tk2";
+# 	    } else {
+# 		$self->_do_error(112, $next);
+# 	    }
+# 	    $self->_do_error(113, $tk2) if $tk2 eq ' EOF ';
+# 	}
+# 	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"""/) {
+# 	    unshift @{$self->{reader}->{tokens}}, $2;
+# 	}
+# 	$tk =~ s/  EOL  /\n/g;
+# 	return $self->_unesc_string($tk);
+# #-
 
     } else {
 	#print ">object is node: $next\n";
@@ -545,7 +546,6 @@ sub _anonymous_node {
 		}
 		$self->{reader}->get;
 	    }
-
 	    my $pref = $self->_built_in_verb('daml','');
 
 	    my $i = 0;
@@ -656,7 +656,7 @@ sub _unesc_qname {
 sub _unesc_string {
     my ($self, $str) = @_;
 
-    $str =~ s/\\newline//go;
+    $str =~ s/\\\n//go;
     $str =~ s/\\\\/\\/go;
     $str =~ s/\\'/'/go;
     $str =~ s/\\"/"/go;

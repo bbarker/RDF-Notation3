@@ -14,37 +14,32 @@ sub new {
     my ($class, $fh) = @_;
 
     my $self = {
-		FILE => $fh,
-		tokens => [],
-		ln => 0,
-	       };
+                FILE => $fh,
+                tokens => [],
+                ln => 0,
+               };
 
     bless $self, $class;
     return $self;
 }
 
 sub _new_line {
-    my ($self) = @_;
+    my ($self, $dont_modify) = @_;
 
     my $fh = $self->{FILE};
     my $line = '';
 
     until ($line) {
-	$line = <$fh>;
-	$self->{ln}++;
+        $line = <$fh>;
+        $self->{ln}++;
 
-	$line =~ s/^\s*(.*)$/$1/;
-	$line =~ s/^(#.*)$//;
-
-	if ($line) {
-	    push @{$self->{tokens}}, split /\s+/, $line;
-	    push @{$self->{tokens}}, ' EOL ';
-	}
-	if (eof) {
-	    push @{$self->{tokens}}, ' EOF ';
-	    return;
-	}
+        unless ($dont_modify) {
+            $line =~ s/^\s*(.*)$/$1/;
+            $line =~ s/^(\#.*)$//;
+        }
+        last if (eof);
     }
+    return $line;
 }
 
 

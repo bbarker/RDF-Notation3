@@ -5,8 +5,8 @@
 
 BEGIN { unshift @INC, 'blib/lib', 'examples'; }
 BEGIN { $| = 1; print "1..9\n"; }
-END {print "There were problems!\n" unless $sum == 10;}
-END {print "Passed\n" if $sum == 10;}
+END {print "There were problems!\n" unless $sum == @r;}
+END {print "Passed\n" if $sum == @r;}
 
 use RDF::Notation3::Triples;
 use RDF::Notation3::PrefTriples;
@@ -98,6 +98,13 @@ $r[9] = 1 if $rc == 5;
 print "not ok 10\n" unless $r[9];
 print "ok 10\n" if $r[9];
 
+##################################################
+# test string parsing
+# 11
+$rc = $rdf->parse_file('examples/test05.n3');
+$r[10] = 1 if $rc;
+print "not ok 11\n" unless $r[10];
+print "ok 11\n" if $r[10];
 
 $sum = 0;
 foreach (@r) {

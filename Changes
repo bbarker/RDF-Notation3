@@ -1,8 +1,12 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.82  Dec 1, 2002
+	- white-spaces are preserved in literals
+	  [patch by Douglas P. Mennella]
+
 0.81  Aug 15, 2002
-	- Std. prefixes (rdf, daml, log) are preserved
+	- std. prefixes (rdf, daml, log) are preserved
 	  when serializing RDF::Core models to N3
 	- fixed a bug in test.pl (Perl 5.8)
 
