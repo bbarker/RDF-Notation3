@@ -6,9 +6,10 @@ package RDF::Notation3;
 require 5.005_62;
 use File::Spec::Functions ();
 use Carp;
-use RDF::Notation3::Reader;
+use RDF::Notation3::ReaderFile;
+use RDF::Notation3::ReaderString;
 
-our $VERSION = '0.20';
+our $VERSION = '0.30';
 
 ############################################################
 
@@ -16,7 +17,7 @@ sub new {
     my ($class) = @_;
 
     my $self = {
-	ansuri => 'http://gingerall.org/n3/anonymous',
+	ansuri => '#',
     };
 
     bless $self, $class;
@@ -24,23 +25,47 @@ sub new {
 }
 
 
-sub parse {
+sub parse_file {
     my ($self, $path) = @_;
-    $path = '.'   unless @_ > 1;
 
     $self->{ns} = {};
     $self->{context} = '<>';
     $self->{gid} = 1;
     $self->{cid} = 1;
 
-    open(FILE, "$path") or croak "Can't open $path for reading!";
+    open(FILE, "$path") or $self->_do_error(2, $path);
     my $fh = *FILE;
-    my $t = new RDF::Notation3::Reader($fh);
+    my $t = new RDF::Notation3::ReaderFile($fh);
     $self->{reader} = $t;
 
     $self->_document;
 
     close (FILE);
+}
+
+
+sub parse_string {
+    my ($self, $str) = @_;
+
+    $self->{ns} = {};
+    $self->{context} = '<>';
+    $self->{gid} = 1;
+    $self->{cid} = 1;
+
+    my $t = new RDF::Notation3::ReaderString($str);
+    $self->{reader} = $t;
+
+    $self->_document;
+}
+
+
+sub anonymous_ns_uri {
+    my ($self, $uri) = @_;
+    if (@_ > 1) {
+	$self->{ansuri} = $uri;
+    } else {
+	return $self->{ansuri};
+    }
 }
 
 
@@ -59,13 +84,19 @@ sub _statement_list {
     my $next = $self->{reader}->try;
     #print ">statement list: $next\n";
 
+    while ($next eq ' EOL ') {
+	$self->{reader}->get;
+	$next = $self->{reader}->try;
+    }
+
     if ($next ne ' EOF ') {
 	if ($next =~ /^(|#.*)$/) {
 	    $self->_space;
 	    $self->_statement_list;
-	} elsif ($next eq ' EOL ') {
-	    $self->{reader}->get;
-	    $self->_statement_list;	    
+
+	} elsif ($next =~ /^}/) {
+	    #print ">end of nested statement list: $next\n";
+
 	} else {
 	    $self->_statement;	    
 	}
@@ -156,10 +187,10 @@ sub _directive {
 		$self->{ns}->{$self->{context}}->{''} = $ns_uri;
 	    }
 	} else {
-	    $self->_do_error(2,$tk);	    
+	    $self->_do_error(102,$tk);	    
 	}
     } else {
-	$self->_do_error(1,$tk);
+	$self->_do_error(101,$tk);
     }
 }
 
@@ -180,11 +211,21 @@ sub _uri_ref2 {
     if ($tk =~ /^<.*>$/) {
 	#print ">URI\n";
 	return $tk;
+
     } elsif ($tk =~ /^([_a-zA-Z]\w*)*:[a-zA-Z]\w*$/) {
-	#print ">qname\n";
+	#print ">qname ($1:)\n" if $1;
+
+	my $pref = '';
+	$pref = $1 if $1;
+	if ($pref eq '_') {  #prefix can be in use
+	    $self->{ns}->{$self->{context}}->{_} = $self->{ansuri}
+		unless $self->{ns}->{$self->{context}}->{_};
+
+	}
 	return $tk;
+
     } else {
-	$self->_do_error(3,$tk);
+	$self->_do_error(103,$tk);
     }
 }
 
@@ -194,22 +235,30 @@ sub _property_list {
     my $next = $self->{reader}->try;
     #print ">property list: $next\n";
 
-    if ($next eq ' EOL ') {
+    while ($next eq ' EOL ') {
 	$self->{reader}->get;
-	$self->_property_list($properties);	    
-    } elsif ($next =~ /^:-/) {
+	$next = $self->{reader}->try;
+    }
+
+    if ($next =~ /^:-/) {
 	#print ">anonnode\n";
 	# TBD
+	$self->_do_error(202, $next);
+
     } elsif ($next eq '.') {
 	#print ">void prop_list\n";
 	# TBD
+
     } else {
+	#print ">prop_list with verb\n";
 	my $property = $self->_verb;
 	#print ">property is back: $property\n";
 
 	my $objects = [];
 	$self->_object_list($objects);
 	unshift @$objects, $property;
+	unshift @$objects, 'i' if ($next eq 'is' or $next eq '<-');
+	#print ">inverse mode\n" if ($next eq 'is' or $next eq '<-');
 	push @$properties, $objects;
     }
 
@@ -228,24 +277,42 @@ sub _verb {
     #print ">verb: $next\n";
 
     if ($next eq 'has') {
-	#print ">verb: $next\n";
 	$self->{reader}->get;
 	return $self->_node;
 
     } elsif ($next eq '>-') {
-	#print ">verb: $next\n";
 	$self->{reader}->get;
 	my $node = $self->_node;
 	my $tk = $self->{reader}->get;
-	$self->_do_error(4,$tk) unless $tk eq '->';	    
+	$self->_do_error(104,$tk) unless $tk eq '->';	    
 	return $node;
+
+    } elsif ($next eq 'is') {
+	$self->{reader}->get;
+	my $node = $self->_node;
+	my $tk = $self->{reader}->get;
+	$self->_do_error(109,$tk) unless $tk eq 'of';
+	return $node;
+
+    } elsif ($next eq '<-') {
+ 	$self->{reader}->get;
+ 	my $node = $self->_node;
+ 	my $tk = $self->{reader}->get;
+ 	$self->_do_error(110,$tk) unless $tk eq '-<';	    
+ 	return $node;
 
     } elsif ($next eq 'a') {
 	$self->{reader}->get;
+	$self->{ns}->{$self->{context}}->{rdf} #prefix can be in use
+	  = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' 
+	    unless $self->{ns}->{$self->{context}}->{rdf};
 	return 'rdf:type'
 
     } elsif ($next eq '=') {
 	$self->{reader}->get;
+	$self->{ns}->{$self->{context}}->{daml} #prefix can be in use
+	  = 'http://www.daml.org/2000/10/daml-ont#' 
+	    unless $self->{ns}->{$self->{context}}->{daml};
 	return 'daml:equivalentTo';
 
     } else {
@@ -260,24 +327,20 @@ sub _object_list {
     my $next = $self->{reader}->try;
     #print ">object list: $next\n";
 
-    if ($next eq ' EOL ') {
+    while ($next eq ' EOL ') {
 	$self->{reader}->get;
-	$self->_object_list($objects);	    
+	$next = $self->{reader}->try;
+    }
+
+    if ($next =~ /^#/) { # comment inside object list
+	$self->_space;	
+	
     } else {
-	# possible end of object, a simple , check is done
-	if ($next =~ /^(.+),$/) {
-	    $self->{reader}->{tokens}->[0] = ',';
+	# possible end of entity, check for sticked next char is done
+	while ($next =~ /^(.+)([,;\.\}\]\)])$/) {
+	    $self->{reader}->{tokens}->[0] = $2;
 	    unshift @{$self->{reader}->{tokens}}, $1;
-	}
-	# possible end of property, a simple ; check is done
-	if ($next =~ /^(.+);$/) {
-	    $self->{reader}->{tokens}->[0] = ';';
-	    unshift @{$self->{reader}->{tokens}}, $1;
-	}
-	# possible end of statement, a simple . check is done
-	if ($next =~ /^(.+)\.$/) {
-	    $self->{reader}->{tokens}->[0] = '.';
-	    unshift @{$self->{reader}->{tokens}}, $1;
+	    $next = $1;
 	}
 
 	my $obj = $self->_object;
@@ -299,44 +362,65 @@ sub _object {
     my $next = $self->{reader}->try;
     #print ">object: $next\n";
 
-    if ($next eq ' EOL ') {
+    while ($next eq ' EOL ') {
 	$self->{reader}->get;
-	$self->_object;
+	$next = $self->{reader}->try;
+    }
 
-    } elsif ($next =~ /^"(\\"|[^\"])*"$/) {
+    if ($next =~ /^"(\\"|[^\"])*"$/) {
 	#print ">complete string1: $next\n";
 	my $tk = $self->{reader}->get;
 	return $tk;
 
-    } elsif ($next =~ /^"/) {
+    } elsif ($next =~ /^"""(.*)"""$/) {
+	#print ">complete string2: $next\n";
+	my $tk = $self->{reader}->get;
+	return $tk;
+
+    } elsif ($next eq '"' or $next =~ /^"[^\"]+/) {
 	#print ">start of string1: $next\n";
 	my $tk = $self->{reader}->get;
-
-	until ($tk =~ /"$/) {
+	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
+	until ($tk =~ /"[\.;,\]\}\)]?$/) {
 	    my $next = $self->{reader}->try;
 	    #print ">next part: $next\n";
-
-	    if ($next =~ /^(\\"|[^\"])*"?[\.;,]?$/) {
-		my $tk2 = $self->{reader}->get;
+	    my $tk2;
+	    if ($next =~ /^(\\"|[^\"])*"?([\.;,\]\}\)])?$/) {
+		$tk2 = $self->{reader}->get;
 		$tk .= " $tk2";
-
-		if ($tk2 =~ /"[\.;,]?$/) {
-		    # possible end of object, property or statement
-		    if ($tk =~ s/^(.*)\.$/$1/) {
-			unshift @{$self->{reader}->{tokens}}, '.';
-		    }
-		    if ($tk =~ s/^(.*)\;$/$1/) {
-			unshift @{$self->{reader}->{tokens}}, ';';
-		    }
-		    if ($tk =~ s/^(.*)\,$/$1/) {
-			unshift @{$self->{reader}->{tokens}}, ',';
-		    }
-		    return $tk;
-		}
 	    } else {
-		$self->_do_error(5, $next);
+		$self->_do_error(105, $next);
 	    }
+	    $self->_do_error(111, $tk2) if $tk2 eq ' EOF ';
 	}
+	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
+	    unshift @{$self->{reader}->{tokens}}, $2;
+	}
+	$self->_do_error(114, $tk) if $tk =~ / EOL /;
+	return $tk;
+
+    } elsif ($next eq '"""' or $next =~ /^"""[^\"]+/) {
+	#print ">start of string2: $next\n";
+	my $tk = $self->{reader}->get;
+	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
+	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
+	    my $next = $self->{reader}->try;
+	    #print ">next part: $next\n";
+	    my $tk2;
+	    if ($next =~ /^(.)*(""")?([\.;,\]\}\)])?$/) {
+		$tk2 = $self->{reader}->get;
+		$tk .= " $tk2";
+	    } else {
+		$self->_do_error(112, $next);
+	    }
+	    $self->_do_error(113, $tk2) if $tk2 eq ' EOF ';
+	}
+	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"/) {
+	    unshift @{$self->{reader}->{tokens}}, $2;
+	}
+	$tk =~ s/  EOL  /\n/g;
+	return $tk;
+
     } else {
 	#print ">object is node: $next\n";
 	$self->_node;
@@ -354,7 +438,7 @@ sub _anonymous_node {
 
     if ($1 eq '[') {
 	#print ">anonnode: []\n";
-	my $genid = "<$self->{ansuri}#g_$self->{gid}>";
+	my $genid = "<$self->{ansuri}g_$self->{gid}>";
 	$self->{gid}++;
 	$self->_statement($genid);
 
@@ -363,17 +447,42 @@ sub _anonymous_node {
 	if ($tk =~ /^\]([,;\.])$/) {
 	    unshift @{$self->{reader}->{tokens}}, $1;
 	} elsif ($tk ne ']') {
-	    $self->_do_error(7, $tk);
+	    $self->_do_error(107, $tk);
 	}
 	return $genid;
 
     } elsif ($1 eq '{') {
 	#print ">anonnode: {}\n";
-	$self->_do_error(10, 'n/a');
+	my $genid = "<$self->{ansuri}c_$self->{cid}>";
+	$self->{cid}++;
+
+	# ns mapping is passed to inner context
+	$self->{ns}->{$genid} = {};
+	foreach (keys %{$self->{ns}->{$self->{context}}}) {
+	    $self->{ns}->{$genid}->{$_} = 
+	      $self->{ns}->{$self->{context}}->{$_};
+	    #print ">prefix '$_' passed to inner context\n";
+	}
+
+	my $parent_context = $self->{context};
+	$self->{context} = $genid;
+	$self->_statement_list;
+	$self->{context} = $parent_context;
+
+	# next step
+ 	my $tk = $self->{reader}->get;
+ 	$tk = $self->{reader}->get if $tk eq ' EOL ';
+
+	if ($tk =~ /^\}([,;\.])?$/) {
+	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
+	} else {
+	    $self->_do_error(108, $tk);
+	}
+	return $genid;
 
     } else {
 	#print ">anonnode: ()\n";
-	$self->_do_error(11, 'n/a');
+	$self->_do_error(201, 'n/a');
     }
 }
 
@@ -383,24 +492,37 @@ sub _anonymous_node {
 sub _do_error {
     my ($self, $n, $tk) = @_;
 
-    my @msg = (
-	       'bind directive is obsolete, use @prefix instead', #1
-	       'invalid namespace prefix', #2
-	       'invalid URI reference (uri_ref2)', #3
-	       'end of verb (->) expected', #4
-	       'invalid characters in string', #5
-	       'namespace prefix not defined', #6
-	       'invalid end of annonode, ] expected', #7
-	       '', #8
-	       '', #9
-	       'anonymous node of type {} not supported yet', #10
-	       'anonymous node of type () not supported yet', #11
-	      );
+    my %msg = (
+	1   => 'file not specified',
+	2   => 'file not found',
+	3   => 'string not specified',
 
-    my $msg = "[Error $n] line $self->{reader}->{ln}, token \"$tk\"\n"
-      ."$msg[$n-1]!\n";
+	101 => 'bind directive is obsolete, use @prefix instead',
+	102 => 'invalid namespace prefix',
+	103 => 'invalid URI reference (uri_ref2)',
+	104 => 'end of verb (->) expected',
+	105 => 'invalid characters in string1',
+	106 => 'namespace prefix not bound',
+	107 => 'invalid end of annonode, ] expected',
+	108 => 'invalid end of annonode, } expected',
+	109 => 'end of verb (of) expected',
+	110 => 'end of verb (-<) expected',
+	111 => 'string1 is not terminated',
+	112 => 'invalid characters in string2',
+	113 => 'string2 is not terminated',
+	114 => 'string1 can\'t include newlines',
+
+	201 => 'anonymous node of type () not supported yet',
+	202 => ':- token not supported yet',
+	);
+
+    my $msg = "[Error $n]";
+    $msg .= " line $self->{reader}->{ln}, token" if $n > 100;
+    $msg .= " \"$tk\"\n";
+    $msg .= "$msg{$n}!\n";
     croak $msg;
 }
 
 
 1;
+

@@ -1,17 +1,21 @@
 use strict;
 use warnings;
 
-package RDF::Notation3::Reader;
+package RDF::Notation3::ReaderString;
 
 require 5.005_62;
+use RDF::Notation3::Template::TReader;
 
 ############################################################
 
+@RDF::Notation3::ReaderString::ISA = qw(RDF::Notation3::Template::TReader);
+
 sub new {
-    my ($class, $fh) = @_;
+    my ($class, $str) = @_;
+    my @lines = split /[\n\r]+/, $str;
 
     my $self = {
-		FILE => $fh,
+		lines => \@lines,
 		tokens => [],
 		ln => 0,
 	       };
@@ -20,32 +24,10 @@ sub new {
     return $self;
 }
 
-sub get {
-    my ($self) = @_;
-
-    unless ($self->{tokens}->[0]) {
-	$self->_new_line;
-    }
-
-    return shift @{$self->{tokens}};
-}
-
-sub try {
-    my ($self) = @_;
-
-    unless ($self->{tokens}->[0]) {
-	$self->_new_line;
-    }
-
-    return $self->{tokens}->[0];
-}
-
-
 sub _new_line {
     my ($self) = @_;
 
-    my $fh = $self->{FILE};
-    my $line = <$fh>;
+    my $line = shift @{$self->{lines}};
     $self->{ln}++;
 
     if ($line) {
@@ -54,9 +36,9 @@ sub _new_line {
 	push @{$self->{tokens}}, split /\s+/, $line 
 	  unless $line =~ /^\s*$/;
 	push @{$self->{tokens}}, ' EOL ';
-	push @{$self->{tokens}}, ' EOF ' if eof;
+	push @{$self->{tokens}}, ' EOF ' unless scalar @{$self->{lines}};
     } else {
-	return if eof;
+	return unless scalar @{$self->{lines}};
 	$self->_new_line;
     }
 }
@@ -69,7 +51,7 @@ __END__
 
 =head1 NAME
 
-RDF::Notation3::Reader - RDF Notation3 file reader
+RDF::Notation3::ReaderString - RDF Notation3 string reader
 
 =head1 LICENSING
 

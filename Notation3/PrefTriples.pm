@@ -10,18 +10,29 @@ use RDF::Notation3::Template::TTriples;
 ############################################################
 
 @RDF::Notation3::PrefTriples::ISA = 
-  qw(RDF::Notation3 RDF::Notation3::Template::TTriples);
+  qw(RDF::Notation3::Template::TTriples RDF::Notation3);
 
 
 sub _process_statement {
     my ($self, $subject, $properties) = @_;
 
     foreach (@$properties) {
+	if ($_->[0] ne 'i') {
 
-	for (my $i = 1; $i < scalar @$_; $i++ ) {
+	    for (my $i = 1; $i < scalar @$_; $i++ ) {
+		
+		push @{$self->{triples}}, 
+		  [$subject, $_->[0], $_->[$i], $self->{context}];
+	    }
+	} else {
+	    # inverse mode (is, <-)
+	    shift @$_;
 
-	    push @{$self->{triples}}, 
-	      [$subject, $_->[0], $_->[$i], $self->{context}];
+	    for (my $i = 1; $i < scalar @$_; $i++ ) {
+		
+		push @{$self->{triples}}, 
+		  [$_->[$i], $_->[0], $subject, $self->{context}];
+	    }
 	}
     }
 }

@@ -7,20 +7,41 @@ RDF::Notation3 - RDF Notation3 parser
 =head1 SYNOPSIS
 
  $rdf = new RDF::Notation3::Triples;
- $rdf->parse($path);
+ $rdf->parse_file($path);
  $triples = $rdf->get_triples;
 
 =head1 DESCRIPTION
 
-This module reads N3 files and returns an array of triples. The module is
-in an alpha stage. The support of N3 format is not complete; in particular
-some anonymous nodes ({...}, (...)), reverse commands (<-, -<, is) and 
-escapes are not supported yet. 
+This module is an RDF/N3 parser; it can parse N3 files or strings and provide
+results in whatever format (as far as there are subclasses supporting your
+desired format available). 
 
-RDF::Notation3 is a base class providing the parsing logic. This class is 
+RDF::Notation3 is a base class providing the parsing logic only. This class is 
 never used directly. Instead, derived classes such as RDF::Notation3::Triples
 are used. The subclasses control how results of parsing are processed and can
-provide additional methods to access the results then.
+provide additional methods to access the results then. RDF::Notation3 doesn't
+tend to create sophisticated in-memory or persistent RDF structures of its own;
+it should more likely serve as a parser for other Perl RDF modules focused on 
+how to store and access RDF triples.
+
+=head1 METHODS COMMON TO ALL CLASSES
+
+parse_file and parse_string methods are actually common to all subclasses, 
+but as they may have completely different behavior for various classes, see
+their description for each particular class.
+
+=over
+
+=item anonymous_ns_uri
+
+ $ns_uri = $rdf->anonymous_ns_uri;
+ $rdf->anonymous_ns_uri('http://gingerall.org/anonymous#');
+
+Gets or sets anonymous namespace URI. The default value is '#', 
+which results in anonymous nodes URIs like this: <#g_1>. If set as above,
+it will be changed to <http://gingerall.org/anonymous#g_1>.
+
+=back
 
 =head1 CLASSES
 
@@ -34,12 +55,18 @@ methods:
 
 =over
 
-=item parse
+=item parse_file
 
- $rdf->parse($path);
+ $rdf->parse_file($path);
 
 Parses an N3 file specified by $path. Triples are stored to the 
 $rdf->{triples} array.
+
+=item parse_string
+
+ $rdf->parse_file($string);
+
+Similar to parse_file, just parses N3 data from string.
 
 =item get_triples
 
@@ -106,7 +133,11 @@ methods:
 
 =over
 
-=item parse
+=item parse_file
+
+See RDF::Notation3::Triples.
+
+=item parse_string
 
 See RDF::Notation3::Triples.
 
@@ -137,13 +168,13 @@ See RDF::Notation3::Triples.
 
 =head1 VERSION
 
-Current version is 0.20.
+Current version is 0.30.
 
 =head1 LICENSING
 
-Copyright (c) 2001 Ginger Alliance. All rights reserved. This program is free 
-software; you can redistribute it and/or modify it under the same terms as 
-Perl itself. 
+Copyright (c) 2001 Ginger Alliance. All rights reserved. This program is 
+free software; you can redistribute it and/or modify it under the same terms
+as Perl itself. 
 
 =head1 AUTHOR
 

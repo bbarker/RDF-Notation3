@@ -10,7 +10,7 @@ use RDF::Notation3::Template::TTriples;
 ############################################################
 
 @RDF::Notation3::Triples::ISA = 
-  qw(RDF::Notation3 RDF::Notation3::Template::TTriples);
+  qw(RDF::Notation3::Template::TTriples RDF::Notation3);
 
 
 sub _process_statement {
@@ -18,17 +18,29 @@ sub _process_statement {
     $subject = $self->_expand_prefix($subject);
 
     foreach (@$properties) {
-	$_->[0] = $self->_expand_prefix($_->[0]);
-
-	for (my $i = 1; $i < scalar @$_; $i++ ) {
-	    $_->[$i] = $self->_expand_prefix($_->[$i]);
-
-	    push @{$self->{triples}}, 
-	      [$subject, $_->[0], $_->[$i], $self->{context}];
-	}
+	if ($_->[0] ne 'i') {
+	    $_->[0] = $self->_expand_prefix($_->[0]);
+	
+	    for (my $i = 1; $i < scalar @$_; $i++ ) {
+		$_->[$i] = $self->_expand_prefix($_->[$i]);
+	    
+		push @{$self->{triples}}, 
+		  [$subject, $_->[0], $_->[$i], $self->{context}];
+	    }
+	} else {
+	    # inverse mode (is, <-)
+	    shift @$_;
+	    $_->[0] = $self->_expand_prefix($_->[0]);
+	
+	    for (my $i = 1; $i < scalar @$_; $i++ ) {
+		$_->[$i] = $self->_expand_prefix($_->[$i]);
+	    
+		push @{$self->{triples}}, 
+		  [$_->[$i], $_->[0], $subject, $self->{context}];
+	    }
+	} 
     }
 }
-
 
 sub _expand_prefix {
     my ($self, $qname) = @_;
@@ -38,7 +50,7 @@ sub _expand_prefix {
     }
 
     if ($qname =~ /^([_a-zA-Z]\w*)*:[a-zA-Z]\w*$/) {
-	$self->_do_error(6, $qname);
+	$self->_do_error(106, $qname);
     }
 
     return $qname;

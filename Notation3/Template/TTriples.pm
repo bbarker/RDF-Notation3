@@ -4,15 +4,31 @@ use warnings;
 package RDF::Notation3::Template::TTriples;
 
 require 5.005_62;
+use RDF::Notation3;
 
 ############################################################
 
-sub parse {
+@RDF::Notation3::Template::TTriples::ISA = qw(RDF::Notation3);
+
+sub parse_file {
     my ($self, $path) = @_;
+    $self->_do_error(1, '') unless @_ > 1;
 
     $self->{triples} = [];
 
-    $self->SUPER::parse($path);
+    $self->SUPER::parse_file($path);
+    return scalar @{$self->{triples}};
+}
+
+
+sub parse_string {
+    my ($self, $str) = @_;
+    $self->_do_error(3, '') unless @_ > 1;
+
+    $self->{triples} = [];
+
+    $self->SUPER::parse_string($str);
+    return scalar @{$self->{triples}};
 }
 
 
