@@ -10,6 +10,14 @@ RDF::Notation3 - RDF Notation3 parser
  $rdf->parse_file($path);
  $triples = $rdf->get_triples;
 
+ $rdf = new RDF::Notation3::XML
+ $rdf->parse_file($path);
+ $string = $rdf->get_string;
+
+ $handler = new SAXHandler;
+ $rdf = new RDF::Notation3::SAX(Handler => $handler);
+ $rdf->parse_file($path);
+
 =head1 DESCRIPTION
 
 This module is an RDF/N3 parser; it can parse N3 files or strings and provide
@@ -18,19 +26,35 @@ desired format available).
 
 RDF::Notation3 is a base class providing the parsing logic only. This class is 
 never used directly. Instead, derived classes such as RDF::Notation3::Triples
-are used. The subclasses control how results of parsing are processed and can
-provide additional methods to access the results then. RDF::Notation3 doesn't
-tend to create sophisticated in-memory or persistent RDF structures of its own;
-it should more likely serve as a parser for other Perl RDF modules focused on 
-how to store and access RDF triples.
+or Notation3::XML are used. The subclasses control how results of parsing 
+are processed and can provide additional methods to access the results then. 
+RDF::Notation3 doesn't tend to create sophisticated in-memory or persistent 
+RDF structures of its own; it should more likely serve as a parser for other 
+Perl RDF modules focused on how to store and access RDF triples.
 
-=head1 METHODS COMMON TO ALL CLASSES
+=head1 METHODS COMMON TO ALL SUBCLASSES
 
-parse_file and parse_string methods are actually common to all subclasses, 
-but as they may have completely different behavior for various classes, see
-their description for each particular class.
+The following methods are common to all subclasses. The parse_file and 
+parse_string methods may have somewhat different behavior for various 
+subclasses, see also their description for particular classes for complete
+information.
 
 =over
+
+=item parse_file
+
+ $rdf->parse_file($path);
+
+Parses an N3 file specified by $path. This method usually returns a number
+of parsed triples; however it can have different side-effects for
+different subclasses (e.g. storing triples in memory or converting to
+another format). See description of particular subclasses for details.
+
+=item parse_string
+
+ $rdf->parse_file($string);
+
+Similar to parse_file, just parses N3 data from string.
 
 =item anonymous_ns_uri
 
@@ -41,13 +65,28 @@ Gets or sets anonymous namespace URI. The default value is '#',
 which results in anonymous nodes URIs like this: <#g_1>. If set as above,
 it will be changed to <http://gingerall.org/anonymous#g_1>.
 
+=item quantification
+
+ $status = $rdf->quantification;
+ $rdf->quantification(0);
+
+Enables and disables existential quantification statements. Valid arguments 
+are 0 (disable) and 1 (enable). When enabled (default), there are generated 
+additional statements in form of
+
+ current_context <http://www.w3.org/2000/10/swap/log.n3#forSome> anonnode
+
+for anonymous nodes of type [...]. This is a common practice in Notation3
+language, a way to turn this feature off is provided to be compatible with
+RDF/XML parsers.
+
 =back
 
-=head1 CLASSES
+=head1 SUBCLASSES
 
 =head2 RDF::Notation3::Triples
 
-This class parses a RDF/N3 file and stores triples in memory. Qualified names 
+This class parses an RDF/N3 file and stores triples in memory. Qualified names 
 with prefixes are expanded using a prefix-URI mapping for given context 
 during the parse time.
 
@@ -55,18 +94,13 @@ methods:
 
 =over
 
-=item parse_file
+=item parse_file, parse_string
 
  $rdf->parse_file($path);
+ $rdf->parse_string($string);
 
-Parses an N3 file specified by $path. Triples are stored to the 
-$rdf->{triples} array.
-
-=item parse_string
-
- $rdf->parse_file($string);
-
-Similar to parse_file, just parses N3 data from string.
+Triples are stored to the $rdf->{triples} array. Namespace bindings appear
+in the $rdf->{ns} hash.
 
 =item get_triples
 
@@ -105,6 +139,22 @@ in the form of "subject - predicate - object". The string can be filtered
 using subject, predicate, object, and context exactly in the same way as
 in the of case get_triples method.
 
+=item add_prefix
+
+ $rc = $rdf->add_prefix('mop','my_own_prefix#');
+
+This method allows to add prefix-namespace bindings for the top-level context.
+It returns the new number of bound prefixes.
+
+=item add_triple
+
+ $rc = $rdf->add_triple('<#Bob>','foaf:name','"Bob"');
+
+This method allows to add triples one by one. It returns the new number of
+stored triples. A valid format of all arguments is checked as well as bindings
+of prefixes. QNames are expanded to URIs. Context is always set to top-level 
+(document).
+
 =back
 
 properties:
@@ -132,7 +182,7 @@ values are again hashes keyed with prefixes with ns URIs as values.
 
 =head2 RDF::Notation3::PrefTriples
 
-This class parses a RDF/N3 file and stores triples in memory. Qualified 
+This class parses an RDF/N3 file and stores triples in memory. Qualified 
 names with prefixes are NOT expanded. The expansion can be done later using 
 the {ns} hash. However, if a prefix-URI binding changes within a context, 
 the result of parsing may be incorrect. Use this class as a faster way to get
@@ -143,13 +193,13 @@ methods:
 
 =over
 
-=item parse_file
+=item parse_file, parse_string
 
-See RDF::Notation3::Triples.
+ $rdf->parse_file($path);
+ $rdf->parse_string($string);
 
-=item parse_string
-
-See RDF::Notation3::Triples.
+Triples are stored to the $rdf->{triples} array. Namespace bindings appear
+in the $rdf->{ns} hash.
 
 =item get_triples
 
@@ -158,6 +208,15 @@ See RDF::Notation3::Triples.
 =item get_triples_as_string
 
 See RDF::Notation3::Triples.
+
+=item add_prefix
+
+See RDF::Notation3::Triples.
+
+=item add_triple
+
+See RDF::Notation3::Triples. The only difference is that QNames are not
+expanded.
 
 =back
 
@@ -180,9 +239,72 @@ See RDF::Notation3::Triples.
 
 =back
 
+=head2 RDF::Notation3::XML
+
+This class parses an RDF/N3 file and converts it to RDF/XML.
+
+methods:
+
+=over
+
+=item parse_file, parse_string
+
+ $rdf->parse_file($path);
+ $rdf->parse_string($string);
+
+Resulting XML is stored in the $rdf->{xml} array (line by line).
+
+=item get_string;
+
+ $xml = $rdf->get_string;
+
+Returns resulting XML as string.
+
+=item get_array
+
+ $xml = $rdf->get_array;
+
+Returns resulting XML as array.
+
+=item get_arrayref
+
+ $xml = $rdf->get_arrayref;
+
+Returns resulting XML as reference to array.
+
+=back
+
+=head2 RDF::Notation3::SAX
+
+This class converts RDF/N3 files to RDF/XML streams of SAX events. It is 
+an XML::SAX compliant SAX driver, therefore it requires XML::SAX to be 
+installed. RDF::Notation3::SAX supports basic Handler (ContentHandler) and
+ErrorHandler. An example of a script (sax.pl) using the SAX driver and simple 
+handlers (MyHandler.pm, MyErrorHandler.pm) can be found in the examples 
+directory.
+
+See Perl SAX 2.0 Binding specification 
+(http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/perl-xml/libxml-perl/doc/) and 
+XML::SAX documentation to learn more about how to use SAX drivers and handlers.
+
+methods:
+
+=over
+
+=item parse_file, parse_string
+
+ $rdf->parse_file($path);
+ $rdf->parse_string($string);
+
+These methods don't return a number of parsed triples but result of calling 
+the end_document() callback as required by spec. The number of triples can
+be accessed as $rdf->{count}.
+
+=back
+
 =head1 VERSION
 
-Current version is 0.40.
+Current version is 0.50.
 
 =head1 LICENSING
 

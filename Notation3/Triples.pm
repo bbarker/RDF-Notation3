@@ -15,6 +15,7 @@ use RDF::Notation3::Template::TTriples;
 
 sub _process_statement {
     my ($self, $subject, $properties) = @_;
+
     $subject = $self->_expand_prefix($subject);
 
     foreach (@$properties) {
@@ -41,6 +42,25 @@ sub _process_statement {
 	} 
     }
 }
+
+
+sub add_triple {
+    my ($self, $subj, $verb, $obj) = @_;
+
+    $self->{triples} or $self->{triples} = [];
+
+    $self->_check_resource($subj);
+    $self->_check_resource($verb);
+    $self->_check_resource($obj, 'l');
+
+    $subj = $self->_expand_prefix($subj);
+    $verb = $self->_expand_prefix($verb);
+    $obj  = $self->_expand_prefix($obj);
+
+    push @{$self->{triples}}, [$subj, $verb, $obj, '<>'];
+    return scalar @{$self->{triples}};
+}
+
 
 sub _expand_prefix {
     my ($self, $qname) = @_;

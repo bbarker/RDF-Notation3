@@ -2,15 +2,11 @@
 
 use strict;
 
-BEGIN {
-    unshift @INC, 
-    "/home/petr/devel/perl-modules/RDF-Notation3/blib/lib",
-    "/home/petr/devel/perl-modules/RDF-Notation3/blib/arch";
-}
+BEGIN { unshift @INC, "../blib/lib", "../blib/arch" }
 
 use RDF::Notation3::Triples;
 
-(@ARGV == 1 ) || die ("Usage: parse_n3.pl file\n\n");
+(@ARGV == 1 ) || die ("Usage: triples.pl <n3_file>\n\n");
 
 my $file = shift;
 
@@ -25,10 +21,13 @@ foreach my $c (keys %{$rdf->{ns}}) {
 }
 
 # triples
-my $triples = $rdf->get_triples;
- foreach (@$triples) {
-    print "$_->[3]: $_->[0] - $_->[1] - $_->[2]\n";
- }
+my $string = $rdf->get_triples_as_string;
+print $string;
+
+#--------------------------------------------------
+print "-" x 30;
+print "\n";
+print "Triples: $rc\n";
 
 exit 0;
 

@@ -38,6 +38,20 @@ sub _process_statement {
 }
 
 
+sub add_triple {
+    my ($self, $subj, $verb, $obj) = @_;
+
+    $self->{triples} or $self->{triples} = [];
+
+    $self->_check_resource($subj);
+    $self->_check_resource($verb);
+    $self->_check_resource($obj, 'l');
+
+    push @{$self->{triples}}, [$subj, $verb, $obj, '<>'];
+    return scalar @{$self->{triples}};
+}
+
+
 1;
 
 

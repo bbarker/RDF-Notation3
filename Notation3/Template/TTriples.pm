@@ -70,6 +70,98 @@ sub get_triples_as_string {
 }
 
 
+sub get_n3 {
+    my ($self) = @_;
+    my $n3 = '';
+
+    # for each context
+    foreach my $c (keys %{$self->{ns}}) {
+	# namespaces
+	foreach (keys %{$self->{ns}->{$c}}) {
+	    $n3 .= "\@prefix $_: <$self->{ns}->{$c}->{$_}> .\n";
+	}
+	# statements
+	my $tri_tree = {};
+	my @tri_seq = ();
+	# building tree
+	foreach my $t (@{$self->{triples}}) {
+	    if ($t->[3] eq $c) {
+
+		push @{$tri_tree->{$t->[0]}->{$t->[1]}}, $t->[2];
+		my $exists = 0;
+		foreach (@tri_seq) {
+		    $_ eq $t->[0] and $exists = 1 and last;
+		}
+		push @tri_seq, $t->[0] unless $exists;
+	    }
+	}
+	# serializing tree
+	foreach my $s (@tri_seq) {
+	    $n3 .= "$s\n";
+	    my @pred = keys %{$tri_tree->{$s}};
+	    for (my $i=0; $i < @pred; $i++) {
+		$n3 .= ' ' x 8;
+		$n3 .= "$pred[$i] ";
+		# object
+		for (my $j=0; $j < @{$tri_tree->{$s}->{$pred[$i]}}; $j++) {
+		    $n3 .= $tri_tree->{$s}->{$pred[$i]}->[$j];
+		    if ($i == $#pred && $j == @{$tri_tree->{$s}->{$pred[$i]}}-1) {
+			$n3 .= " .\n";
+		    } elsif ($j == @{$tri_tree->{$s}->{$pred[$i]}}-1) {
+			$n3 .= " ;\n";
+		    } else {
+			$n3 .= " , ";
+		    }
+		}
+	    }
+	}
+    }
+    return $n3;
+}
+
+
+sub add_prefix {
+    my ($self, $pref, $uri) = @_;
+
+    if ($pref !~ /^[_a-zA-Z]\w*/) {
+	$self->_do_error(102, $pref);
+    } elsif ($uri !~ /^(?:[_a-zA-Z]\w*)?:[a-zA-Z]\w*$|^[^\{\}<>]*$/) {
+	$self->_do_error(103, $uri);
+    } else {
+	$self->{ns}->{'<>'}->{$pref} = $uri;
+    }
+    return scalar keys %{$self->{ns}->{'<>'}};
+}
+
+
+sub _check_resource {
+    my ($self, $rs, $type) = @_;
+
+    if ($rs =~ /^<[^\{\}<>]*>$/) {
+	# URI
+
+    } elsif ($rs =~ /^(?:[_a-zA-Z]\w*)?:[a-zA-Z]\w*$/) {
+	# QName
+	my $bound = 0;
+	foreach (keys %{$self->{ns}->{$self->{context}}}) {
+	    $rs =~ /^$_:(.*)$/ and $bound = 1 and last;
+	}
+	$self->_do_error(106, $rs) unless $bound;
+
+    } elsif ($rs =~ /^"(?:\\"|[^\"])*"$/) {
+	# string1
+	$self->_do_error(202, $rs) unless $type eq 'l';
+
+    } elsif ($rs =~ /^"""(.*)"""$/) {
+	# string2
+	$self->_do_error(202, $rs) unless $type eq 'l';
+
+    } else {
+	$self->_do_error(201, $rs);
+    }
+}
+
+
 1;
 
 

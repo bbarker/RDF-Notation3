@@ -27,19 +27,23 @@ sub _new_line {
     my ($self) = @_;
 
     my $fh = $self->{FILE};
-    my $line = <$fh>;
-    $self->{ln}++;
+    my $line = '';
 
-    if ($line) {
+    until ($line) {
+	$line = <$fh>;
+	$self->{ln}++;
+
 	$line =~ s/^\s*(.*)$/$1/;
+	$line =~ s/^(#.*)$//;
 
-	push @{$self->{tokens}}, split /\s+/, $line 
-	  unless $line =~ /^\s*$/;
-	push @{$self->{tokens}}, ' EOL ';
-	push @{$self->{tokens}}, ' EOF ' if eof;
-    } else {
-	return if eof;
-	$self->_new_line;
+	if ($line) {
+	    push @{$self->{tokens}}, split /\s+/, $line;
+	    push @{$self->{tokens}}, ' EOL ';
+	}
+	if (eof) {
+	    push @{$self->{tokens}}, ' EOF ';
+	    return;
+	}
     }
 }
 

@@ -12,7 +12,7 @@ use RDF::Notation3::Template::TReader;
 
 sub new {
     my ($class, $str) = @_;
-    my @lines = split /[\n\r]+/, $str;
+    my @lines = split /\n|\r|\n\r/, $str;
 
     my $self = {
 		lines => \@lines,
@@ -27,19 +27,23 @@ sub new {
 sub _new_line {
     my ($self) = @_;
 
-    my $line = shift @{$self->{lines}};
-    $self->{ln}++;
+    my $line = '';
 
-    if ($line) {
+    until ($line) {
+	$line = shift @{$self->{lines}};
+	$self->{ln}++;
+
 	$line =~ s/^\s*(.*)$/$1/;
+	$line =~ s/^(#.*)$//;
 
-	push @{$self->{tokens}}, split /\s+/, $line 
-	  unless $line =~ /^\s*$/;
-	push @{$self->{tokens}}, ' EOL ';
-	push @{$self->{tokens}}, ' EOF ' unless scalar @{$self->{lines}};
-    } else {
-	return unless scalar @{$self->{lines}};
-	$self->_new_line;
+	if ($line) {
+	    push @{$self->{tokens}}, split /\s+/, $line;
+	    push @{$self->{tokens}}, ' EOL ';
+	}
+	unless (scalar @{$self->{lines}}) {
+	    push @{$self->{tokens}}, ' EOF ';
+	    return;
+	}
     }
 }
 

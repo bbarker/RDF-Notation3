@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-our $VERSION = '0.40';
+our $VERSION = '0.50';
 
 ############################################################
 
@@ -18,6 +18,7 @@ sub new {
 
     my $self = {
 	ansuri  => '#',
+	quantif => 1,
     };
 
     bless $self, $class;
@@ -32,6 +33,11 @@ sub parse_file {
     $self->{context} = '<>';
     $self->{gid} = 1;
     $self->{cid} = 1;
+    $self->{hardns} = {
+	rdf  => ['rdf','http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
+	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
+	};
 
     open(FILE, "$path") or $self->_do_error(2, $path);
     my $fh = *FILE;
@@ -51,6 +57,11 @@ sub parse_string {
     $self->{context} = '<>';
     $self->{gid} = 1;
     $self->{cid} = 1;
+    $self->{hardns} = {
+	rdf  => ['rdf','http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
+	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
+	};
 
     my $t = new RDF::Notation3::ReaderString($str);
     $self->{reader} = $t;
@@ -65,6 +76,17 @@ sub anonymous_ns_uri {
 	$self->{ansuri} = $uri;
     } else {
 	return $self->{ansuri};
+    }
+}
+
+sub quantification {
+    my ($self, $val) = @_;
+    if (@_ > 1) {
+	$self->_do_error(4, $val) 
+	  unless $val == 1 || $val == 0;
+	$self->{quantif} = $val;
+    } else {
+	return $self->{quantif};
     }
 }
 
@@ -86,10 +108,10 @@ sub _statement_list {
     #print ">statement list: $next\n";
 
     while ($next ne ' EOF ') {
-	if ($next =~ /^(|#.*)$/) {
+	if ($next =~ /^(?:|#.*)$/o) {
 	    $self->_space;
 
-	} elsif ($next =~ /^}/) {
+	} elsif ($next =~ /^}/o) {
 	    #print ">end of nested statement list: $next\n";
 	    last;
 
@@ -121,7 +143,7 @@ sub _statement {
     my $next = $self->{reader}->try;
     #print ">statement starts: $next\n";
 
-    if ($next =~ /^(\@prefix|bind)$/) {
+    if ($next =~ /^\@prefix|bind$/o) {
 	$self->_directive;
 	
     } else {
@@ -133,16 +155,23 @@ sub _statement {
 
 	#print ">CONTEXT: $self->{context}\n";
 	#print ">SUBJECT: $subject\n";
-	#foreach (@$properties) {
+	#print ">PROPERTY: void\n" unless @$properties;
+	#foreach (@$properties) { # comment/uncomment by hand
 	    #print ">PROPERTY: ", join('-', @$_), "\n";
 	#}
 
-	$self->_process_statement($subject, $properties)
+	$self->_process_statement($subject, $properties) if @$properties;
     }
     # next step
     $next = $self->_eat_EOLs;
     if ($next eq '.') {
 	$self->{reader}->get;
+    } elsif ($next =~ /^\.(.*)$/) {
+	$self->{reader}->get;
+	unshift @{$self->{reader}->{tokens}}, $1;
+    } elsif ($next =~ /^(?:\]|\)|\})/) {
+    } else {
+	$self->_do_error(115,$next);
     }
 }
  
@@ -152,7 +181,16 @@ sub _node {
     my $next = $self->_eat_EOLs;
     #print ">node: $next\n";
 
-    if ($next =~ /^([\[\{\(])(.*)$/) {
+    # separate stuck tokens
+#     if ($next =~ /^([^,;\.\[\]\{\}\(\)]+)([,;\.\[\]\{\}\(\)].*)$/o) { #???
+# 	my $tk = $self->{reader}->get;
+# 	unshift @{$self->{reader}->{tokens}}, $2;
+# 	unshift @{$self->{reader}->{tokens}}, $1;
+# 	$next = $1;
+# 	#print ">cleaned node: $next\n";
+#     }
+
+    if ($next =~ /^[\[\{\(]/o) {
 	#print ">node is anonnode\n";
 	return $self->_anonymous_node;
 
@@ -161,9 +199,20 @@ sub _node {
 	$self->{reader}->get;
 	return "$self->{context}";
 
-    } else {
+    } elsif ($next =~ /^(<[^>]*>|^(?:[_a-zA-Z]\w*)?:[a-zA-Z]\w*)(.*)$/o) {
 	#print ">node is uri_ref2: $next\n";
+	if ($2) {
+	    $self->{reader}->get;
+	    unshift @{$self->{reader}->{tokens}}, $2;
+	    unshift @{$self->{reader}->{tokens}}, $1;
+	    $next = $1;
+	    #print ">cleaned uri_ref2: $next\n";
+	}
 	return $self->_uri_ref2;
+
+    } else {
+	#print ">unknown node: $next\n";
+	$self->_do_error(116,$next);
     }
 }
 
@@ -175,7 +224,7 @@ sub _directive {
 
     if ($tk eq '@prefix') {
 	my $tk = $self->{reader}->get;
-	if ($tk =~ /^([_a-zA-Z]\w*)*:$/) {
+	if ($tk =~ /^([_a-zA-Z]\w*)?:$/o) {
 	    my $pref = $1;
 	    #print ">nprefix: $pref\n" if $pref;
 
@@ -201,7 +250,7 @@ sub _uri_ref2 {
 
     # possible end of statement, a simple . check is done
     my $next = $self->{reader}->try;
-    if ($next =~ /^(.+)\.$/) {
+    if ($next =~ /^(.+)\.$/o) {
 	$self->{reader}->{tokens}->[0] = '.';
 	unshift @{$self->{reader}->{tokens}}, $1;
     }
@@ -209,16 +258,16 @@ sub _uri_ref2 {
     my $tk = $self->{reader}->get;
     #print ">uri_ref2: $tk\n";
 
-    if ($tk =~ /^<.*>$/) {
+    if ($tk =~ /^<[^>]*>$/o) {
 	#print ">URI\n";
 	return $tk;
 
-    } elsif ($tk =~ /^([_a-zA-Z]\w*)*:[a-zA-Z]\w*$/) {
+    } elsif ($tk =~ /^([_a-zA-Z]\w*)?:[a-zA-Z]\w*$/o) {
 	#print ">qname ($1:)\n" if $1;
 
 	my $pref = '';
 	$pref = $1 if $1;
-	if ($pref eq '_') {  #prefix can be in use
+	if ($pref eq '_') { # workaround to parse N-Triples
 	    $self->{ns}->{$self->{context}}->{_} = $self->{ansuri}
 		unless $self->{ns}->{$self->{context}}->{_};
 
@@ -236,12 +285,14 @@ sub _property_list {
     my $next = $self->_eat_EOLs;
     #print ">property list: $next\n";
 
-    if ($next =~ /^:-/) {
+    $next = $self->_check_inline_comment($next);
+
+    if ($next =~ /^:-/o) {
 	#print ">anonnode\n";
 	# TBD
-	$self->_do_error(202, $next);
+	$self->_do_error(199, $next);
 
-    } elsif ($next eq '.') {
+    } elsif ($next =~ /^\./) {
 	#print ">void prop_list\n";
 	# TBD
 
@@ -298,17 +349,14 @@ sub _verb {
 
     } elsif ($next eq 'a') {
 	$self->{reader}->get;
-	$self->{ns}->{$self->{context}}->{rdf} #prefix can be in use
-	  = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' 
-	    unless $self->{ns}->{$self->{context}}->{rdf};
-	return 'rdf:type'
+	return $self->_built_in_verb('rdf','type');
+#	return '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>'
 
-    } elsif ($next eq '=') {
+    } elsif ($next =~ /^=(.*)/) {
 	$self->{reader}->get;
-	$self->{ns}->{$self->{context}}->{daml} #prefix can be in use
-	  = 'http://www.daml.org/2001/03/daml+oil#' 
-	    unless $self->{ns}->{$self->{context}}->{daml};
-	return 'daml:equivalentTo';
+	unshift @{$self->{reader}->{tokens}}, $1 if $1;
+	return $self->_built_in_verb('daml','equivalentTo');
+#	return '<http://www.daml.org/2001/03/daml+oil#equivalentTo>';
 
     } else {
 	#print ">property: $next\n";
@@ -322,13 +370,10 @@ sub _object_list {
     my $next = $self->_eat_EOLs;
     #print ">object list: $next\n";
 
-    if ($next =~ /^#/) { # comment inside object list
-	$self->_space;
-	$next = $self->_eat_EOLs;
-    }
+    $next = $self->_check_inline_comment($next);
 
     # possible end of entity, check for sticked next char is done
-    while ($next =~ /^(.+)([,;\.\}\]\)])$/) {
+    while ($next =~ /^([^"]+)([,;\.\}\]\)])$/o) {
 	$self->{reader}->{tokens}->[0] = $2;
 	unshift @{$self->{reader}->{tokens}}, $1;
 	$next = $1;
@@ -352,25 +397,27 @@ sub _object {
     my $next = $self->_eat_EOLs;
     #print ">object: $next\n";
 
-    if ($next =~ /^"(\\"|[^\"])*"$/) {
+    if ($next =~ /^("(?:\\"|[^\"])*")([\.;,\]\}\)])*$/o) {
 	#print ">complete string1: $next\n";
 	my $tk = $self->{reader}->get;
-	return $tk;
+	unshift @{$self->{reader}->{tokens}}, $2 if $2;
+	return $1;
 
-    } elsif ($next =~ /^"""(.*)"""$/) {
+    } elsif ($next =~ /^(""".*""")([\.;,\]\}\)])*$/o) {
 	#print ">complete string2: $next\n";
 	my $tk = $self->{reader}->get;
-	return $tk;
+	unshift @{$self->{reader}->{tokens}}, $2 if $2;
+	return $1;
 
-    } elsif ($next eq '"' or $next =~ /^"[^\"]+/) {
+    } elsif ($next eq '"' or $next =~ /^"[^\"]/o) {
 	#print ">start of string1: $next\n";
 	my $tk = $self->{reader}->get;
 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"';
-	until ($tk =~ /"[\.;,\]\}\)]?$/) {
+	until ($tk =~ /"[\.;,\]\}\)]?$/o) {
 	    my $next = $self->{reader}->try;
 	    #print ">next part: $next\n";
 	    my $tk2;
-	    if ($next =~ /^(\\"|[^\"])*"?([\.;,\]\}\)])?$/) {
+	    if ($next =~ /^(?:\\"|[^\"])*"?(?:[\.;,\]\}\)])?$/o) {
 		$tk2 = $self->{reader}->get;
 		$tk .= " $tk2";
 	    } else {
@@ -381,18 +428,18 @@ sub _object {
 	if ($tk =~ s/^(.*)"([\.;,\]\}\)])$/$1"/) {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
-	$self->_do_error(114, $tk) if $tk =~ / EOL /;
+	$self->_do_error(114, $tk) if $tk =~ / EOL /o;
 	return $tk;
 
-    } elsif ($next eq '"""' or $next =~ /^"""[^\"]+/) {
+    } elsif ($next eq '"""' or $next =~ /^"""[^\"]/o) {
 	#print ">start of string2: $next\n";
 	my $tk = $self->{reader}->get;
 	$tk = $tk . ' ' . $self->{reader}->get if $tk eq '"""';
-	until ($tk =~ /"""[\.;,\]\}\)]?$/) {
+	until ($tk =~ /"""[\.;,\]\}\)]?$/o) {
 	    my $next = $self->{reader}->try;
 	    #print ">next part: $next\n";
 	    my $tk2;
-	    if ($next =~ /^(.)*(""")?([\.;,\]\}\)])?$/) {
+	    if ($next =~ /^.*(?:""")?[\.;,\]\}\)]?$/o) {
 		$tk2 = $self->{reader}->get;
 		$tk .= " $tk2";
 	    } else {
@@ -400,10 +447,10 @@ sub _object {
 	    }
 	    $self->_do_error(113, $tk2) if $tk2 eq ' EOF ';
 	}
-	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"/) {
+	if ($tk =~ s/^(.*)"""([\.;,\]\}\)])$/$1"""/) {
 	    unshift @{$self->{reader}->{tokens}}, $2;
 	}
-	$tk =~ s/  EOL  /\n/g;
+	$tk =~ s/  EOL  /\n/go;
 	return $tk;
 
     } else {
@@ -416,7 +463,7 @@ sub _object {
 sub _anonymous_node {
     my ($self) = @_;
     my $next = $self->{reader}->try;
-    $next =~ /^([\[\{\(])(.*)$/;
+    $next =~ /^([\[\{\(])(.*)$/o;
     #print ">anonnode1: $1\n";
     #print ">anonnode2: $2\n";
 
@@ -427,12 +474,19 @@ sub _anonymous_node {
 	#print ">anonnode: []\n";
 	my $genid = "<$self->{ansuri}g_$self->{gid}>";
 	$self->{gid}++;
-	$self->_statement($genid);
+
+	$next = $self->_eat_EOLs;
+	if ($next =~ /^\](.)*$/) {
+	    $self->_exist_quantif($genid);
+	} else {
+	    $self->_exist_quantif($genid);
+	    $self->_statement($genid);	    
+	}
 
 	# next step
-	my $next = $self->_eat_EOLs;
+	$next = $self->_eat_EOLs;
 	my $tk = $self->{reader}->get;
-	if ($tk =~ /^\]([,;\.\]\}\)])$/) {
+	if ($tk =~ /^\](.+)$/o) {
 	    unshift @{$self->{reader}->{tokens}}, $1;
 	} elsif ($tk ne ']') {
 	    $self->_do_error(107, $tk);
@@ -461,7 +515,7 @@ sub _anonymous_node {
 	$self->_eat_EOLs;
  	my $tk = $self->{reader}->get;
 	#print ">next token: $tk\n";
-	if ($tk =~ /^\}([,;\.\]\}\)])?$/) {
+	if ($tk =~ /^\}([,;\.\]\}\)])?$/o) {
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
 	} else {
 	    $self->_do_error(108, $tk);
@@ -472,20 +526,23 @@ sub _anonymous_node {
 	#print ">anonnode: ()\n";
 	my $next = $self->_eat_EOLs;
 
-	if ($next =~ /^\)([,;\.\]\}\)])*$/) {
+#	if ($next =~ /^\)([,;\.\]\}\)])*$/o) {
+	if ($next =~ /^\)(.*)$/o) {
 	    #print ">void ()\n";
 	    $self->{reader}->get;
 	    unshift @{$self->{reader}->{tokens}}, $1 if $1;
-	    return '<http://www.daml.org/2001/03/daml+oil#nil>';
+#	    return '<http://www.daml.org/2001/03/daml+oil#nil>';
+	    return $self->_built_in_verb('daml','nil');
+	    
 	} else {
 
 	    #print ">anonnode () starts: $next\n";
 	    my @nodes = ();
- 	    until ($next =~ /^(.*)\)([,;\.\]\}\)]*)$/) {
+ 	    until ($next =~ /^.*\)[,;\.\]\}\)]*$/o) {
 		push @nodes, $self->_node;
  		$next = $self->_eat_EOLs;
  	    }
-	    if ($next =~ /^([^)]*)\)([,;\.\]\}\)]*)$/) {
+	    if ($next =~ /^([^)]*)\)([,;\.\]\}\)]*)$/o) {
 		$self->{reader}->get;
 		unshift @{$self->{reader}->{tokens}}, $2 if $2;
 		unshift @{$self->{reader}->{tokens}}, ')';
@@ -495,16 +552,19 @@ sub _anonymous_node {
 		}
 		$self->{reader}->get;
 	    }
+
+	    my $pref = $self->_built_in_verb('daml','');
+
 	    my $i = 0;
 	    my @expnl = (); # expanded node list
 	    foreach (@nodes) {
 		$i++;
 		push @expnl, '[';
-		push @expnl, '<http://www.daml.org/2001/03/daml+oil#first>';
+		push @expnl, $pref . 'first';
 		push @expnl, $_;
 		push @expnl, ';';
-		push @expnl, '<http://www.daml.org/2001/03/daml+oil#rest>';
-		push @expnl, '<http://www.daml.org/2001/03/daml+oil#nil>' 
+		push @expnl, $pref . 'rest';
+		push @expnl, $pref . 'nil' 
 		  if $i == scalar @nodes;
 	    }
 	    for (my $j = 0; $j < $i; $j++) {push @expnl, ']'}
@@ -514,6 +574,22 @@ sub _anonymous_node {
 	    my $genid = $self->_anonymous_node;
 	    return $genid;
 	}
+    }
+}
+
+
+sub _exist_quantif {
+    my ($self, $anode) = @_;
+
+    if ($self->{quantif}) {
+	my $qname = $self->_built_in_verb('log','forSome');
+	#print ">existential quantification: $anode\n";
+	#print ">CONTEXT: $self->{context}\n";
+	#print ">SUBJECT: $self->{context}\n";
+	#print ">PROPERTY: $qname";
+	#print ">-$anode\n";
+	$self->_process_statement($self->{context}, 
+		[[$qname, $anode]]);
     }
 }
 
@@ -529,6 +605,39 @@ sub _eat_EOLs {
     return $next;
 }
 
+
+# comment inside a list
+sub _check_inline_comment {
+    my ($self, $next) = @_;
+
+    if ($next =~ /^#/o) { 
+	$self->_space;
+	$next = $self->_eat_EOLs;
+    }
+    return $next;
+}
+
+
+sub _built_in_verb {
+    my ($self, $key, $verb) = @_;
+
+    # resolves possible NS conflicts
+    my $i = 1;
+    while ($self->{ns}->{$self->{context}}->{$self->{hardns}->{$key}->[0]} and
+	   $self->{ns}->{$self->{context}}->{$self->{hardns}->{$key}->[0]} ne 
+	   $self->{hardns}->{$key}->[1]) {
+
+	$self->{hardns}->{$key}->[0] = "$key$i";
+	$i++;
+    }
+    # adds prefix-NS binding
+    $self->{ns}->{$self->{context}}->{$self->{hardns}->{$key}->[0]} = 
+      $self->{hardns}->{$key}->[1];
+
+    return "$self->{hardns}->{$key}->[0]:$verb";
+}
+
+
 ########################################
 
 sub _do_error {
@@ -538,6 +647,7 @@ sub _do_error {
 	1   => 'file not specified',
 	2   => 'file not found',
 	3   => 'string not specified',
+	4   => 'invalid parameter of quantification method (0|1)',
 
 	101 => 'bind directive is obsolete, use @prefix instead',
 	102 => 'invalid namespace prefix',
@@ -549,12 +659,21 @@ sub _do_error {
 	108 => 'invalid end of annonode, } expected',
 	109 => 'end of verb (of) expected',
 	110 => 'end of verb (-<) expected',
-	111 => 'string1 is not terminated',
+	111 => 'string1 ("...") is not terminated',
 	112 => 'invalid characters in string2',
-	113 => 'string2 is not terminated',
-	114 => 'string1 can\'t include newlines',
+	113 => 'string2 ("""...""")is not terminated',
+	114 => 'string1 ("...") can\'t include newlines',
+	115 => 'end of statement expected',
+	116 => 'invalid node',
+	199 => ':- token not supported yet',
 
-	202 => ':- token not supported yet',
+	201 => '[Triples] attempt to add invalid node',
+	202 => '[Triples] literal not allowed as subject or predicate',
+
+	301 => '[SAX] systemID source not implemented',       
+	301 => '[SAX] characterStream source not implemented',       
+
+	401 => '[XML] unable to convert URI predicate to QName',
 	);
 
     my $msg = "[Error $n]";
@@ -566,4 +685,10 @@ sub _do_error {
 
 
 1;
+
+
+
+
+
+
 
