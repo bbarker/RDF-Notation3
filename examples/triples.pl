@@ -30,6 +30,3 @@ print "\n";
 print "Triples: $rc\n";
 
 exit 0;
-
-
-

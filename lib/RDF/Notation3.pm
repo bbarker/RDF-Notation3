@@ -9,7 +9,7 @@ use Carp;
 use RDF::Notation3::ReaderFile;
 use RDF::Notation3::ReaderString;
 
-$VERSION = '0.90';
+$VERSION = '0.91';
 
 ############################################################
 
@@ -31,9 +31,16 @@ sub parse_file {
     my ($self, $path) = @_;
 
     $self->_define;
+    
+    my $fh;
+    if (ref $path eq 'IO::File') {
+	$fh = $path;
 
-    open(FILE, "$path") or $self->_do_error(2, $path);
-    my $fh = *FILE;
+    } else {
+	open(FILE, "$path") or $self->_do_error(2, $path);
+	$fh = *FILE;
+    }
+
     my $t = new RDF::Notation3::ReaderFile($fh);
     $self->{reader} = $t;
 
@@ -88,6 +95,7 @@ sub _define {
 	daml => ['daml','http://www.daml.org/2001/03/daml+oil#'],
 	log  => ['log','http://www.w3.org/2000/10/swap/log.n3#'],
 	};
+    $self->{keywords} = [];
 }
 
 
@@ -143,7 +151,7 @@ sub _statement {
     my $next = $self->{reader}->try;
     #print ">statement starts: $next\n";
 
-    if ($next =~ /^\@prefix|bind$/) {
+    if ($next =~ /^\@prefix|\@keywords|bind$/) {
 	$self->_directive;
 	
     } else {
@@ -189,7 +197,7 @@ sub _node {
 	#print ">this\n";
 	$self->{reader}->get;
 	return "$self->{context}";
-
+	
     } elsif ($next =~ /^(<[^>]*>|^(?:[_a-zA-Z]\w*)?:[_a-zA-Z][_\w]*)(.*)$/) {
 	#print ">node is uri_ref2: $next\n";
 
@@ -199,6 +207,15 @@ sub _node {
 	    unshift @{$self->{reader}->{tokens}}, $1;
 	    #print ">cleaned uri_ref2: $1\n";
 	}
+	return $self->_uri_ref2;
+
+    } elsif ($self->{keywords}[0] && ($next =~ /^(^[_a-zA-Z][_\w]*)(.*)$/)) {
+	#print ">node is uri_ref_kw: $next\n";
+
+	$self->{reader}->get;
+	unshift @{$self->{reader}->{tokens}}, $2 if $2;
+	unshift @{$self->{reader}->{tokens}}, ':' . $1;
+	#print ">cleaned uri_ref2: $1\n";
 	return $self->_uri_ref2;
 
     } else {
@@ -230,6 +247,23 @@ sub _directive {
 	} else {
 	    $self->_do_error(102,$tk);	    
 	}
+
+    } elsif ($tk eq '@keywords') {
+	my $kw = $self->{reader}->get;
+	while ($kw =~ /,$/) {
+	    $kw =~ s/,$//;
+	    push @{$self->{keywords}}, $kw;
+	    $kw = $self->{reader}->get;
+	}
+
+	if ($kw =~ /^(.+)\.$/) {
+	    push @{$self->{keywords}}, $1;
+	    unshift @{$self->{reader}{tokens}}, '.';
+	} else {
+	    $self->_do_error(117,$tk);
+	}
+	#print ">keywords: ", join('|', @{$self->{keywords}}), "\n";
+
     } else {
 	$self->_do_error(101,$tk);
     }
@@ -647,13 +681,14 @@ sub _do_error {
 	114 => 'string1 ("...") can\'t include newlines',
 	115 => 'end of statement expected',
 	116 => 'invalid node',
+	117 => 'last keyword expected',
 	199 => ':- token not supported yet',
 
 	201 => '[Triples] attempt to add invalid node',
 	202 => '[Triples] literal not allowed as subject or predicate',
 
-	301 => '[SAX] systemID source not implemented',       
-	301 => '[SAX] characterStream source not implemented',       
+	#301 => '[SAX] systemID source not implemented',       
+	302 => '[SAX] characterStream source not implemented',       
 
 	401 => '[XML] unable to convert URI predicate to QName',
 	402 => '[XML] subject not recognized - internal error',

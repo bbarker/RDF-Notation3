@@ -7,6 +7,8 @@ require 5.005_62;
 use RDF::Notation3;
 use RDF::Notation3::Template::TXML;
 use XML::SAX::Base;
+use IO::File;
+use Carp;
 
 ############################################################
 
@@ -17,6 +19,7 @@ use XML::SAX::Base;
 
 sub _parse_bytestream {
     my ($self, $fh, $options) = @_; #FIXME: options to ai jsou zbytecne
+
     $self->_do_error(1, '') unless @_ > 1;
     $self->{ansuri} = '#' unless exists $self->{ansuri};
     $self->{quantif} = 1 unless exists $self->{quantif};
@@ -35,6 +38,7 @@ sub _parse_bytestream {
 
 sub _parse_string {
     my ($self, $str, $options) = @_;
+
     $self->_do_error(3, '') unless @_ > 1;
     $self->{ansuri} = '#' unless exists $self->{ansuri};
     $self->{quantif} = 1 unless exists $self->{quantif};
@@ -53,7 +57,10 @@ sub _parse_string {
 
 sub _parse_systemid {
     my ($self, $uri, $options) = @_;
-    $self->_do_error(301, '');
+
+    my $fh = IO::File->new($uri) or croak "RDF::Notation3: Can't open $uri ($!)";
+    $self->_parse_bytestream($fh, $options);
+    #$self->_do_error(301, '');
 }
 
 sub _parse_characterstream {

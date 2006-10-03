@@ -1,5 +1,5 @@
 use strict;
-#use warnings;
+use warnings;
 
 package RDF::Notation3::ReaderString;
 
@@ -33,7 +33,7 @@ sub _new_line {
         $line = shift @{$self->{lines}};
         $self->{ln}++;
 
-        unless ( $dont_modify ) {
+        unless ($dont_modify or !$line) {
             $line =~ s/^\s*(.*)$/$1/;
             $line =~ s/^(\#.*)$//;
         }

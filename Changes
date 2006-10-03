@@ -1,6 +1,12 @@
 Revision history for Perl extension RDF::Notation3
 ==================================================
 
+0.91 Oct 3, 2006
+        - basic support for @keywords
+	- fixed parsing SystemId and ByteStream with SAX
+	- package rebuilt with up-to-date tools
+	- test suite improved and extended
+
 0.90  Aug 25, 2003
         - rdf:nodeID attribute is used for blank nodes in
 	  conversions to RDF/XML

@@ -25,7 +25,7 @@ foreach (keys %opts) {
 
 WriteMakefile(
     'NAME'		=> 'RDF::Notation3',
-    'VERSION_FROM'	=> 'Notation3.pm', # finds $VERSION
+    'VERSION_FROM'	=> 'lib/RDF/Notation3.pm', # finds $VERSION
     'PREREQ_PM'		=> {}, # e.g., Module::Name => 1.1
      dist	        => {COMPRESS => 'gzip', SUFFIX => 'tar.gz'},
 );
